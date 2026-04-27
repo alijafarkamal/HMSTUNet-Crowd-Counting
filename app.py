@@ -1,3 +1,9 @@
+import os
+import shutil
+import tempfile
+import urllib.request
+from pathlib import Path
+
 import streamlit as st
 import torch
 import torchvision.transforms as T
@@ -9,10 +15,58 @@ from model import HMSTUNet
 
 st.set_page_config(page_title="HMSTUNet Crowd Counter", layout="wide")
 
+CHECKPOINT_PATH = Path("checkpoints/best.pth")
+
+
+def _checkpoint_download_url():
+    url = (os.environ.get("CHECKPOINT_URL") or "").strip()
+    if url:
+        return url
+    try:
+        return str(st.secrets["CHECKPOINT_URL"]).strip()
+    except (KeyError, TypeError):
+        return None
+
+
+def ensure_checkpoint_file():
+    """Local file, or download once from CHECKPOINT_URL (env or Streamlit secrets)."""
+    CHECKPOINT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    if CHECKPOINT_PATH.is_file():
+        return CHECKPOINT_PATH
+
+    url = _checkpoint_download_url()
+    if not url:
+        raise FileNotFoundError(
+            "Missing checkpoints/best.pth. Either add the file under checkpoints/, or set "
+            "CHECKPOINT_URL in Streamlit app secrets / environment to a direct download link."
+        )
+
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": "Mozilla/5.0 (compatible; HMSTUNet/1.0)"},
+    )
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            delete=False, dir=CHECKPOINT_PATH.parent, suffix=".part"
+        ) as tmp:
+            tmp_path = Path(tmp.name)
+            with urllib.request.urlopen(req, timeout=600) as resp:
+                shutil.copyfileobj(resp, tmp)
+            tmp.flush()
+        tmp_path.replace(CHECKPOINT_PATH)
+    except Exception:
+        if tmp_path is not None:
+            tmp_path.unlink(missing_ok=True)
+        raise
+    return CHECKPOINT_PATH
+
+
 @st.cache_resource
 def load_model():
+    path = ensure_checkpoint_file()
     model = HMSTUNet(pretrained=False)
-    checkpoint = torch.load("checkpoints/best.pth", map_location='cpu')
+    checkpoint = torch.load(path, map_location="cpu")
     if 'state_dict' in checkpoint:
         model.load_state_dict(checkpoint['state_dict'])
     elif 'model' in checkpoint:
@@ -26,9 +80,13 @@ st.title("👥 HMSTUNet Crowd Counting")
 st.markdown("Upload an image to estimate the crowd count and visualize the density map using the **HMSTUNet** model.")
 
 try:
-    model = load_model()
+    with st.spinner("Loading model (first run may download weights)..."):
+        model = load_model()
 except Exception as e:
-    st.error(f"Failed to load model. Make sure `checkpoints/best.pth` exists. Error: {e}")
+    st.error(
+        f"Failed to load model. Add `checkpoints/best.pth` locally, or set **CHECKPOINT_URL** "
+        f"in Streamlit **Secrets** to a direct `.pth` download link. Error: {e}"
+    )
     st.stop()
 
 uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])

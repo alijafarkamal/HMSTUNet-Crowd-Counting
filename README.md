@@ -29,6 +29,20 @@
    streamlit run app.py
    ```
 
+## ☁️ Streamlit Community Cloud
+
+Weights are not stored in git. On the hosted app, either:
+
+1. Open your app on [share.streamlit.io](https://share.streamlit.io) → **App settings** (⋮) → **Secrets**, and add:
+   ```toml
+   CHECKPOINT_URL = "https://...direct link to best.pth..."
+   ```
+   Use a **direct file URL** (e.g. Hugging Face: `https://huggingface.co/<user>/<repo>/resolve/main/best.pth`, or a raw/static hosting link). The first visitor may wait while the file downloads once; it is cached on the machine after that.
+
+2. Or keep using a local `checkpoints/best.pth` when you run `streamlit run app.py` on your computer (no secret needed).
+
+See `.streamlit/secrets.toml.example` for a template.
+
 ## 📦 Checkpoints & Datasets
 
 - **Model Weights**: Place your trained `best.pth` checkpoint inside the `checkpoints/` directory.
