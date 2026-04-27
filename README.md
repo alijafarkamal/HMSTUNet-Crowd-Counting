@@ -31,17 +31,53 @@
 
 ## ☁️ Streamlit Community Cloud
 
-Weights are not stored in git. On the hosted app, either:
+Weights are not stored in git. On the hosted app you must either supply a **direct download URL** via Secrets or run locally with a file on disk.
 
-1. Open your app on [share.streamlit.io](https://share.streamlit.io) → **App settings** (⋮) → **Secrets**, and add:
+### Secrets (required on Cloud)
+
+1. Open [share.streamlit.io](https://share.streamlit.io) → your app → **⋮** → **Settings** → **Secrets**.
+2. Use a **flat**, case-sensitive key at the top level of the TOML (recommended):
+
    ```toml
-   CHECKPOINT_URL = "https://...direct link to best.pth..."
+   CHECKPOINT_URL = "https://example.com/path/best.pth"
    ```
-   Use a **direct file URL** (e.g. Hugging Face: `https://huggingface.co/<user>/<repo>/resolve/main/best.pth`, or a raw/static hosting link). The first visitor may wait while the file downloads once; it is cached on the machine after that.
 
-2. Or keep using a local `checkpoints/best.pth` when you run `streamlit run app.py` on your computer (no secret needed).
+   Or a **nested** table (also supported by the app):
 
-See `.streamlit/secrets.toml.example` for a template.
+   ```toml
+   [checkpoint]
+   url = "https://example.com/path/best.pth"
+   ```
+
+3. Click **Save**, then **Reboot** the app. Secrets are not always applied until a reboot.
+
+### URL must be a direct file link
+
+Opening the URL in a browser should **download** `best.pth` (or start a binary download), not show HTML.
+
+- **Hugging Face (public file):** `https://huggingface.co/<user>/<repo>/resolve/main/best.pth`
+- **Dropbox:** use a link with `dl=1` (not the `dl=0` preview page).
+- **Google Drive:** convert the share link to a direct-download form; a plain “share” URL often fails.
+
+The first launch after a reboot may take a while while weights download; they are then cached on the runner.
+
+### If it still says missing checkpoint / CHECKPOINT_URL
+
+- Wrong or nested-under-wrong-name keys (e.g. `[weights]` instead of `[checkpoint]` with `url`, or typo `CHECKPOINT_URI`).
+- Secret value empty or URL not in quotes when the URL contains `#` or special characters.
+- App not **rebooted** after saving Secrets.
+- URL is not direct (login page, HTML preview, virus-scan interstitial).
+
+### Local run
+
+Use `checkpoints/best.pth` on disk, or:
+
+```bash
+export CHECKPOINT_URL="https://…/best.pth"
+streamlit run app.py
+```
+
+See [.streamlit/secrets.toml.example](.streamlit/secrets.toml.example) for a template.
 
 ## 📦 Checkpoints & Datasets
 

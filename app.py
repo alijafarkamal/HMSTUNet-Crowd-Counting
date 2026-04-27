@@ -18,12 +18,34 @@ st.set_page_config(page_title="HMSTUNet Crowd Counter", layout="wide")
 CHECKPOINT_PATH = Path("checkpoints/best.pth")
 
 
+def _nonempty_str(value):
+    if value is None:
+        return None
+    s = str(value).strip()
+    return s if s else None
+
+
 def _checkpoint_download_url():
-    url = (os.environ.get("CHECKPOINT_URL") or "").strip()
-    if url:
-        return url
+    u = _nonempty_str(os.environ.get("CHECKPOINT_URL"))
+    if u:
+        return u
     try:
-        return str(st.secrets["CHECKPOINT_URL"]).strip()
+        sec = st.secrets
+    except Exception:
+        return None
+    getter = getattr(sec, "get", None)
+    if callable(getter):
+        u = _nonempty_str(getter("CHECKPOINT_URL"))
+        if u:
+            return u
+    try:
+        u = _nonempty_str(sec["CHECKPOINT_URL"])
+        if u:
+            return u
+    except (KeyError, TypeError):
+        pass
+    try:
+        return _nonempty_str(sec["checkpoint"]["url"])
     except (KeyError, TypeError):
         return None
 
@@ -86,6 +108,13 @@ except Exception as e:
     st.error(
         f"Failed to load model. Add `checkpoints/best.pth` locally, or set **CHECKPOINT_URL** "
         f"in Streamlit **Secrets** to a direct `.pth` download link. Error: {e}"
+    )
+    st.info(
+        "**Streamlit Cloud:** Open the app menu (**⋮**) → **Settings** → **Secrets**. Use a "
+        "**top-level** key `CHECKPOINT_URL = \"https://…/best.pth\"` (must be a direct file URL, "
+        "not a share page), click **Save**, then **Reboot** the app. You can instead use a nested "
+        "table: `[checkpoint]` with `url = \"…\"`. "
+        "**Local run:** put `best.pth` in `checkpoints/` or export `CHECKPOINT_URL` before starting Streamlit."
     )
     st.stop()
 
