@@ -2,6 +2,8 @@
 
 🚀 A lightweight, interactive Streamlit application for accurate crowd density estimation using the **HMSTUNet** architecture.
 
+**Pretrained weights (`best.pth`):** [download](https://huggingface.co/aliJafar/hmstunet-weights/resolve/main/best.pth) · [Hugging Face repo](https://huggingface.co/aliJafar/hmstunet-weights/tree/main) — save as `checkpoints/best.pth` locally, or use the download URL as **`CHECKPOINT_URL`** in Streamlit Cloud Secrets.
+
 ---
 
 ## 🌟 Features
