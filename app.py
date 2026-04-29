@@ -120,19 +120,25 @@ except Exception as e:
 
 uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
 
-def preprocess_image(image):
+def preprocess_image(image, max_size=1024):
     image = image.convert("RGB")
+    w, h = image.size
+    
+    # Scale down if too large to prevent OOM
+    if max(w, h) > max_size:
+        scale = max_size / max(w, h)
+        w, h = int(w * scale), int(h * scale)
+        image = image.resize((w, h), Image.BILINEAR)
     
     # Resize to multiple of 32 for ViT/ConvNeXt compatibility
-    w, h = image.size
-    new_w = w // 32 * 32
-    new_h = h // 32 * 32
+    new_w = (w // 32) * 32
+    new_h = (h // 32) * 32
     
     # Avoid resizing to 0
     new_w = max(32, new_w)
     new_h = max(32, new_h)
     
-    if new_w != w or new_h != h:
+    if new_w != image.size[0] or new_h != image.size[1]:
         image = image.resize((new_w, new_h), Image.BILINEAR)
         
     transform = T.Compose([
