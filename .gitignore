@@ -1,0 +1,114 @@
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+pytestdebug.log
+
+# Jupyter
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+profile_default/
+ipython_config.py
+
+# Environments & secrets
+.env
+.env.*
+!.env.example
+*.local
+secrets.toml
+.streamlit/secrets.toml
+
+# Type checkers / linters
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.pytype/
+.pyre/
+
+# IDEs & editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# OS
+.DS_Store
+.DS_Store?
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Logs & temp
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.temp
+
+# ML / checkpoints (large binaries — add via release or external storage)
+*.pth
+*.pt
+*.ckpt
+*.onnx
+*.h5
+*.pb
+*.safetensors
+checkpoints/*
+!checkpoints/.gitkeep
+data/**/density_maps/
+*.npy
+
+# Streamlit (never commit secrets)
+.streamlit/secrets.toml
+
+# Cursor / tooling (optional local state)
+.cursor/
