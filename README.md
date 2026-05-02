@@ -226,6 +226,7 @@ See [.streamlit/secrets.toml.example](.streamlit/secrets.toml.example) for a tem
 
 - **Model Weights**: Place your trained `best.pth` checkpoint inside the `checkpoints/` directory.
 - **ShanghaiTech Dataset**: Used for training & evaluation.
+  - [Checkpoint](https://drive.google.com/drive/folders/1SvFIAao5tyNgO-J-BRs0ttymy9jxwFph?usp=drive_link)
   - 📖 [Dataset GitHub Repository](https://github.com/desenzhou/ShanghaiTechDataset)
   - 📥 [Direct Download (Dropbox)](https://www.dropbox.com/scl/fi/dkj5kulc9zj0rzesslck8/ShanghaiTech_Crowd_Counting_Dataset.zip?rlkey=ymbcj50ac04uvqn8p49j9af5f&dl=0)
 
