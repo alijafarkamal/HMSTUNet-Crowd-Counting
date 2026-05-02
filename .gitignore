@@ -104,6 +104,8 @@ temp/
 *.safetensors
 checkpoints/*
 !checkpoints/.gitkeep
+data/**/density_maps/
+*.npy
 
 # Streamlit (never commit secrets)
 .streamlit/secrets.toml
