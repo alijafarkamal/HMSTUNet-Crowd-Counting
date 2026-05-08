@@ -27,89 +27,517 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+:root {
+    --primary: #22d3ee;
+    --primary-glow: rgba(34, 211, 238, 0.3);
+    --accent: #0ea5e9;
+    --bg-dark: #061d23;
+    --card-bg: rgba(8, 51, 68, 0.6);
+    --border: rgba(34, 211, 238, 0.2);
+    --text-main: #f8fafc;
+    --text-dim: #94a3b8;
+}
 
 html, body, [class*="css"] {
     font-family: 'Inter', sans-serif;
 }
 
+h1, h2, h3, .stHeader {
+    font-family: 'Outfit', sans-serif !important;
+}
+
 .stApp {
-    background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
-    min-height: 100vh;
+    background: radial-gradient(circle at 50% 0%, #083344 0%, #061d23 100%);
+    color: var(--text-main);
 }
 
 .hero-header {
     text-align: center;
-    padding: 2.5rem 1rem 1.5rem;
+    padding: 3rem 1rem 1rem;
 }
 .hero-header h1 {
-    font-size: 2.8rem;
+    font-size: 3.5rem;
     font-weight: 700;
-    background: linear-gradient(90deg, #a78bfa, #60a5fa, #34d399);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin-bottom: 0.4rem;
+    letter-spacing: -0.02em;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
 }
 .hero-header p {
-    color: #94a3b8;
-    font-size: 1.05rem;
-    font-weight: 400;
+    color: var(--text-dim);
+    font-size: 1.1rem;
+    max-width: 600px;
+    margin: 0 auto;
 }
 
-.glass-card {
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 16px;
-    padding: 1.5rem;
-    backdrop-filter: blur(12px);
-    margin-bottom: 1.2rem;
+/* Stepper Component */
+.stepper-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5rem;
+    margin: 3rem 0;
+    position: relative;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
 }
-
-.metric-badge {
-    background: linear-gradient(135deg, rgba(167,139,250,0.2), rgba(96,165,250,0.2));
-    border: 1px solid rgba(167,139,250,0.4);
-    border-radius: 12px;
-    padding: 1rem 1.5rem;
-    text-align: center;
-    margin: 0.4rem;
+.stepper-line {
+    position: absolute;
+    top: 20px;
+    left: 10%;
+    right: 10%;
+    height: 2px;
+    background: var(--border);
+    z-index: 0;
 }
-.metric-badge .label {
-    font-size: 0.78rem;
-    color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-weight: 600;
+.step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+    opacity: 0.5;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.metric-badge .value {
-    font-size: 2.4rem;
-    font-weight: 700;
-    color: #a78bfa;
-    line-height: 1.2;
+.step.active {
+    opacity: 1;
+    transform: translateY(-2px);
 }
-.metric-badge .unit {
-    font-size: 0.85rem;
-    color: #64748b;
-}
-
-.section-title {
-    font-size: 1.15rem;
-    font-weight: 600;
-    color: #e2e8f0;
-    margin: 1.5rem 0 0.8rem;
+.step-circle {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--bg-dark);
+    border: 2px solid var(--border);
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    justify-content: center;
+    font-weight: 700;
+    margin-bottom: 0.8rem;
+    color: var(--text-dim);
+    box-shadow: 0 0 20px rgba(0,0,0,0.3);
+}
+.active .step-circle {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #000;
+    box-shadow: 0 0 25px var(--primary-glow);
+}
+.step-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+.active .step-label {
+    color: var(--primary);
+    text-shadow: 0 0 10px var(--primary-glow);
 }
 
-.info-box {
-    background: rgba(96,165,250,0.1);
-    border-left: 3px solid #60a5fa;
-    border-radius: 0 8px 8px 0;
-    padding: 0.8rem 1rem;
-    color: #bfdbfe;
-    font-size: 0.9rem;
+[data-testid="stFileUploader"] {
+    background: var(--card-bg);
+    border: 2px dashed var(--border);
+    border-radius: 24px;
+    padding: 3rem 2rem 2rem;
+    backdrop-filter: blur(20px);
+    margin: 0.5rem 0 0.5rem;
+    text-align: center;
+    position: relative;
+}
+.info-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 0;
+    backdrop-filter: blur(10px);
+}
+.info-card b {
+    color: #fff;
+    font-weight: 600;
+}
+.uploader-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--primary);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.2rem;
+    padding-left: 0.5rem;
+    letter-spacing: 0.01em;
+}
+.uploader-header span {
+    font-size: 1.3rem;
+    filter: drop-shadow(0 0 8px var(--primary-glow));
+}
+.help-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid var(--text-dim);
+    border-radius: 50%;
+    font-size: 11px;
+    color: var(--text-dim);
+    cursor: help;
+    margin-left: 8px;
+    transition: all 0.3s ease;
+}
+.help-icon:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    box-shadow: 0 0 8px var(--primary-glow);
+}
+.tooltip {
+    position: relative;
+    display: inline-block;
+}
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 220px;
+    background-color: #ffffff;
+    color: #1e293b;
+    text-align: center;
+    border-radius: 8px;
+    padding: 8px 12px;
+    position: absolute;
+    z-index: 1000;
+    bottom: 150%;
+    left: 50%;
+    margin-left: -110px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-size: 12px;
+    font-weight: 500;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    line-height: 1.4;
+}
+.tooltip .tooltiptext::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #ffffff transparent transparent transparent;
+}
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+}
+[data-testid="stFileUploaderDropzone"] {
+    background: rgba(255,255,255,0.02) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.2rem;
+    padding: 3rem !important;
+    margin-top: 1rem;
+}
+/* Style for uploaded file chips */
+[data-testid="stFileUploaderUploadedFiles"] {
+    padding-top: 1.5rem;
+}
+[data-testid="stUploadedFile"] {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 10px !important;
+    padding: 0.5rem 1rem !important;
+    backdrop-filter: blur(10px) !important;
+}
+[data-testid="stUploadedFile"] > div {
+    color: #fff !important;
+}
+[data-testid="stFileUploaderDeleteBtn"], [data-testid="stFileUploaderAddBtn"] {
+    background-color: var(--primary) !important;
+    color: #000 !important;
+    border-radius: 8px !important;
+    transition: all 0.3s ease !important;
+}
+/* Glassmorphism Table Styling */
+.glass-table-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgba(8, 51, 68, 0.4);
+}
+.glass-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: var(--text-main);
+    font-size: 0.95rem;
+}
+.glass-table th {
+    background: rgba(34, 211, 238, 0.15);
+    color: var(--primary);
+    font-weight: 600;
+    text-align: left;
+    padding: 12px 16px;
+    position: sticky;
+    top: 0;
+    backdrop-filter: blur(8px);
+    z-index: 1;
+    border-bottom: 2px solid var(--primary);
+}
+.glass-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    transition: background 0.2s ease;
+}
+.glass-table tbody tr:hover td {
+    background: rgba(34, 211, 238, 0.1);
+    color: #fff;
+}
+.glass-table tbody tr:first-child td {
+    background: rgba(34, 211, 238, 0.2);
+    font-weight: 700;
+    color: #fff;
+    border-left: 3px solid var(--primary);
+}
+.glass-table-container::-webkit-scrollbar {
+    width: 6px;
+}
+.glass-table-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+.glass-table-container::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 10px;
+}
+
+[data-testid="stFileUploaderDeleteBtn"]:hover {
+    background-color: #ef4444 !important; /* Red on hover for delete */
+    color: #fff !important;
+}
+[data-testid="stFileUploaderDropzone"] button {
+    background-color: var(--primary) !important;
+    color: #000 !important;
+    font-weight: 700 !important;
+    border-radius: 10px !important;
+    border: none !important;
+    padding: 0.6rem 2rem !important;
+    transition: all 0.3s ease !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    box-shadow: none !important;
+}
+[data-testid="stFileUploaderDropzone"] button:hover {
+    transform: translateY(-2px) !important;
+    filter: brightness(1.1);
+    box-shadow: none !important;
+}
+.uploader-desc {
+    color: var(--text-dim);
+    font-size: 1.05rem;
+    max-width: 650px;
+    margin: 0 auto;
+    line-height: 1.6;
+    text-align: center;
+}
+
+/* Override Streamlit Info Box */
+div[data-testid="stNotification"] {
+    background: rgba(8, 51, 68, 0.8) !important;
+    border: 1px solid var(--border) !important;
+    border-left: 5px solid var(--primary) !important;
+    color: var(--text-main) !important;
+    border-radius: 8px;
+}
+
+.stTabs [data-baseweb="tab-list"] {
+    gap: 12px;
+    background: transparent;
+    margin-bottom: 1.5rem;
+}
+.stTabs [data-baseweb="tab"] {
+    height: 48px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border) !important;
+    padding: 0 24px;
+    color: rgba(255, 255, 255, 0.8) !important; /* Brighter text for unselected tabs */
+    transition: all 0.3s ease;
+}
+.stTabs [aria-selected="true"] {
+    background: var(--primary) !important;
+    color: #000 !important; /* Fixed contrast */
+    font-weight: 700 !important;
+    border: 3px solid #ffffff !important; /* Thick White boundary */
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+/* Hide default red underline */
+div[data-baseweb="tab-highlight"] {
+    background-color: transparent !important;
+}
+
+/* Analysis Section Styling */
+.metric-badge {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    transition: transform 0.3s ease;
     margin-bottom: 1rem;
+}
+.metric-badge:hover {
+    transform: translateY(-5px);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--primary);
+}
+.metric-badge .label {
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.6rem;
+}
+.metric-badge .value {
+    color: var(--primary);
+    font-size: 2.2rem;
+    font-weight: 700;
+    line-height: 1;
+}
+.metric-badge .unit {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-top: 0.4rem;
+}
+.section-title {
+    font-family: 'Outfit', sans-serif !important;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff;
+    margin: 3rem 0 1.5rem;
+    padding: 0.5rem 1rem;
+    border-left: 4px solid var(--primary);
+    background: linear-gradient(90deg, rgba(34, 211, 238, 0.1) 0%, transparent 100%);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    letter-spacing: -0.01em;
+    border-radius: 0 8px 8px 0;
+}
+.info-box {
+    background: rgba(34, 211, 238, 0.05);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 2rem;
+    color: var(--text-main);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+/* Custom Number Input Styling */
+[data-testid="stNumberInput"] {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    padding: 0.8rem !important; /* Increased distance from borders */
+    margin: 1.2rem 0 !important;   /* Added spacing around the component */
+}
+[data-testid="stNumberInput"] label {
+    color: var(--text-dim) !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    margin-bottom: 0.5rem !important;
+}
+[data-testid="stNumberInput"] input {
+    color: #fff !important;
+    font-weight: 700 !important;
+    font-size: 1.1rem !important;
+}
+[data-testid="stNumberInputStepDown"], [data-testid="stNumberInputStepUp"] {
+    background-color: rgba(34, 211, 238, 0.1) !important;
+    color: var(--primary) !important;
+    border-radius: 8px !important;
+    border: none !important;
+    transition: all 0.3s ease !important;
+}
+[data-testid="stNumberInputStepUp"] {
+    margin-left: 8px !important; /* Added gap between buttons */
+}
+[data-testid="stNumberInputStepDown"]:hover {
+    background-color: #ef4444 !important; /* Red for minus */
+    color: #fff !important;
+}
+[data-testid="stNumberInputStepUp"]:hover {
+    background-color: #22c55e !important; /* Green for plus */
+    color: #fff !important;
+}
+
+/* Custom Slider Thumb Styling */
+[data-testid="stSlider"] [data-baseweb="slider"] {
+    padding-top: 10px !important;
+}
+[data-testid="stSlider"] [role="slider"] {
+    background-color: #3b82f6 !important; /* Blue center */
+    border: 3px solid #ffffff !important; /* Thick white ring */
+    width: 20px !important;
+    height: 20px !important;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.6) !important; /* Subtle glow */
+    top: 2px !important; /* Center on track */
+    color: transparent !important; /* Hide text on thumb */
+    transition: box-shadow 0.2s ease !important;
+}
+
+[data-testid="stSlider"] [role="slider"]:hover,
+[data-testid="stSlider"] [role="slider"]:active {
+    box-shadow: 0 0 16px rgba(59, 130, 246, 1.0) !important;
+}
+[data-testid="stSliderTickBar"],
+[data-testid="stThumbValue"] {
+    display: none !important;
+}
+/* Make Colormap Segmented Control match the Tabs styling */
+[data-testid="stSegmentedControl"] {
+    gap: 16px !important;
+}
+[data-testid="stSegmentedControl"] button {
+    height: 48px !important;
+    border-radius: 12px !important;
+    background: rgba(255,255,255,0.03) !important;
+    border: 1px solid var(--border) !important;
+    padding: 0 24px !important;
+    color: rgba(255, 255, 255, 0.8) !important;
+    transition: all 0.3s ease !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 !important;
+    min-width: 100px !important;
+    font-size: 1rem !important;
+}
+/* Active state matching the tabs exactly */
+[data-testid="stSegmentedControl"] button[aria-selected="true"],
+[data-testid="stSegmentedControl"] button[data-selected="true"] {
+    background: var(--primary) !important;
+    color: #000 !important;
+    font-weight: 700 !important;
+    border: 3px solid #ffffff !important;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2) !important;
+}
+[data-testid="stSegmentedControl"] button[aria-selected="true"] *,
+[data-testid="stSegmentedControl"] button[data-selected="true"] * {
+    color: #000 !important;
+    font-weight: 700 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -215,6 +643,20 @@ def density_to_heatmap(density_map: np.ndarray, cmap=cv2.COLORMAP_JET) -> np.nda
     dm_norm = density_map / (density_map.max() + 1e-5)
     heatmap_bgr = cv2.applyColorMap(np.uint8(255 * dm_norm), cmap)
     return cv2.cvtColor(heatmap_bgr, cv2.COLOR_BGR2RGB)
+
+
+def render_stepper(step_idx):
+    steps = ["Upload", "Analysis", "Results"]
+    html = '<div class="stepper-container">'
+    html += '<div class="stepper-line"></div>'
+    for i, label in enumerate(steps):
+        active_class = "active" if i == step_idx else ""
+        html += f'<div class="step {active_class}">'
+        html += f'<div class="step-circle">{i+1}</div>'
+        html += f'<div class="step-label">{label}</div>'
+        html += '</div>'
+    html += '</div>'
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def overlay_heatmap(orig_pil: Image.Image, heatmap_rgb: np.ndarray, alpha: float = 0.55) -> np.ndarray:
@@ -353,14 +795,20 @@ def diff_to_heatmap(diff_map: np.ndarray):
 
 
 # ──────────────────────────────────────────────
-#  Hero header
+#  Hero header & Stepper
 # ──────────────────────────────────────────────
 st.markdown("""
 <div class="hero-header">
-    <h1>👥 HMSTUNet Crowd Counter</h1>
-    <p>AI-powered crowd density estimation</p>
+    <h1>
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary); margin-bottom: -5px; margin-right: 10px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        HMSTUNet Crowd Counter
+    </h1>
+    <p>Advanced neural crowd analysis using HMSTUNet architecture for real-time density estimation and spatial intelligence.</p>
 </div>
 """, unsafe_allow_html=True)
+
+# Placeholder for stepper to keep it at the top
+stepper_container = st.empty()
 
 # ──────────────────────────────────────────────
 #  Load model
@@ -378,20 +826,40 @@ except Exception as e:
 # ──────────────────────────────────────────────
 #  File uploader
 # ──────────────────────────────────────────────
-st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+st.markdown('<div style="position: relative;">', unsafe_allow_html=True)
+st.markdown(f'''
+    <div class="uploader-header">
+        <span>📁</span> Select source image for crowd analysis
+        <div class="tooltip">
+            <div class="help-icon">?</div>
+            <span class="tooltiptext">High resolution JPG or PNG files recommended.</span>
+        </div>
+    </div>
+''', unsafe_allow_html=True)
 uploaded_file = st.file_uploader(
-    "📂 Upload a crowd image (JPG / PNG)",
+    "Upload Image",
     type=["jpg", "jpeg", "png"],
-    help="Upload any image containing people to estimate the crowd count.",
+    label_visibility="collapsed"
 )
 st.markdown('</div>', unsafe_allow_html=True)
 
+# Step tracking
+current_step = 0
+if uploaded_file is not None:
+    current_step = 1
+    file_id = upload_file_id(uploaded_file)
+    if f"result_{file_id}" in st.session_state:
+        current_step = 2
+
+with stepper_container:
+    render_stepper(current_step)
+
 if uploaded_file is None:
     st.markdown("""
-    <div class="info-box">
-        ℹ️ Upload an image above to start. The model will generate a full density map and
-        estimate the total crowd count.
-    </div>
+        <div class="info-card">
+            <span>ℹ️</span> 
+            <div><b>Getting Started:</b> Upload a crowd image above to begin the multi-scale density analysis.</div>
+        </div>
     """, unsafe_allow_html=True)
     st.stop()
 
@@ -467,13 +935,15 @@ with tab_single:
         "PLASMA": cv2.COLORMAP_PLASMA,
         "VIRIDIS": cv2.COLORMAP_VIRIDIS
     }
-    selected_cmap_name = st.radio(
+    selected_cmap_name = st.segmented_control(
         "🎨 Select Colormap",
         options=list(cmap_options.keys()),
-        index=0,
-        horizontal=True,
+        default="JET",
+        selection_mode="single",
         key="single_cmap",
     )
+    if not selected_cmap_name:
+        selected_cmap_name = "JET"
 
     heatmap_rgb = density_to_heatmap(density_map, cmap=cmap_options[selected_cmap_name])
     overlay_rgb = overlay_heatmap(orig_img, heatmap_rgb, alpha=0.60)
@@ -528,9 +998,17 @@ with tab_zone:
     st.markdown("##### Grid overview")
     zc1, zc2 = st.columns(2)
     with zc1:
-        rows = st.slider("Grid rows", min_value=2, max_value=6, value=3)
+        if "grid_rows" not in st.session_state: st.session_state.grid_rows = 3
+        c1, c2 = st.columns([1, 1])
+        c1.markdown("<div style='color: var(--text-dim); font-size: 0.95rem; font-weight: 500;'>Grid rows</div>", unsafe_allow_html=True)
+        c2.markdown(f"<div style='text-align: right; color: var(--text-main); font-weight: 600;'>{st.session_state.grid_rows}</div>", unsafe_allow_html=True)
+        rows = st.slider("Grid rows", min_value=2, max_value=6, value=st.session_state.grid_rows, label_visibility="collapsed", key="grid_rows")
     with zc2:
-        cols = st.slider("Grid columns", min_value=2, max_value=6, value=3)
+        if "grid_cols" not in st.session_state: st.session_state.grid_cols = 3
+        c1, c2 = st.columns([1, 1])
+        c1.markdown("<div style='color: var(--text-dim); font-size: 0.95rem; font-weight: 500;'>Grid columns</div>", unsafe_allow_html=True)
+        c2.markdown(f"<div style='text-align: right; color: var(--text-main); font-weight: 600;'>{st.session_state.grid_cols}</div>", unsafe_allow_html=True)
+        cols = st.slider("Grid columns", min_value=2, max_value=6, value=st.session_state.grid_cols, label_visibility="collapsed", key="grid_cols")
 
     zone_stats = compute_zone_stats(density_map, rows, cols)
     hotspot = zone_stats[0]
@@ -540,18 +1018,22 @@ with tab_zone:
     with v1:
         st.image(zone_grid_img, caption=f"Grid overlay (hotspot: {hotspot['zone']})", use_container_width=True)
     with v2:
-        st.dataframe(
-            [
-                {
-                    "Zone": z["zone"],
-                    "Count (est.)": int(round(z["count"])),
-                    "Share (%)": round(z["share_pct"], 2),
-                }
-                for z in zone_stats
-            ],
-            use_container_width=True,
-            hide_index=True,
-        )
+        html_rows = ""
+        for z in zone_stats:
+            html_rows += f"<tr><td>{z['zone']}</td><td>{int(round(z['count']))}</td><td>{round(z['share_pct'], 2)}</td></tr>"
+            
+        st.markdown(f"""
+        <div class="glass-table-container">
+            <table class="glass-table">
+                <thead>
+                    <tr><th>Zone</th><th>Count (est.)</th><th>Share (%)</th></tr>
+                </thead>
+                <tbody>
+                    {html_rows}
+                </tbody>
+            </table>
+        </div>
+        """, unsafe_allow_html=True)
 
     st.markdown("##### Perspective-aware custom ROI zones")
     st.caption("Define meaningful areas (e.g., entrance, stage-left, exits) using pixel ranges.")
@@ -591,19 +1073,22 @@ with tab_zone:
     with r1:
         st.image(roi_overlay, caption=f"Custom ROI overlay (hotspot: {roi_hotspot['zone']})", use_container_width=True)
     with r2:
-        st.dataframe(
-            [
-                {
-                    "ROI Zone": z["zone"],
-                    "Count (est.)": int(round(z["count"])),
-                    "Share (%)": round(z["share_pct"], 2),
-                    "Box (x0,y0,x1,y1)": f"({z['x0']},{z['y0']},{z['x1']},{z['y1']})",
-                }
-                for z in roi_stats
-            ],
-            use_container_width=True,
-            hide_index=True,
-        )
+        html_rows = ""
+        for z in roi_stats:
+            html_rows += f"<tr><td>{z['zone']}</td><td>{int(round(z['count']))}</td><td>{round(z['share_pct'], 2)}</td><td>({z['x0']},{z['y0']},{z['x1']},{z['y1']})</td></tr>"
+            
+        st.markdown(f"""
+        <div class="glass-table-container">
+            <table class="glass-table">
+                <thead>
+                    <tr><th>ROI Zone</th><th>Count (est.)</th><th>Share (%)</th><th>Box (x0,y0,x1,y1)</th></tr>
+                </thead>
+                <tbody>
+                    {html_rows}
+                </tbody>
+            </table>
+        </div>
+        """, unsafe_allow_html=True)
 
 with tab_compare:
     st.markdown('<div class="section-title">🔁 Before/After Comparative Analysis</div>', unsafe_allow_html=True)
