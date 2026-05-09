@@ -15,6 +15,10 @@ import numpy as np
 import cv2
 
 from model import HMSTUNet
+import pandas as pd
+from fpdf import FPDF
+import io
+import datetime
 
 # ──────────────────────────────────────────────
 #  Page config & custom CSS
@@ -1341,3 +1345,175 @@ with tab_compare:
             st.image(compare_orig, caption="After image", use_container_width=True)
         with d3:
             st.image(diff_overlay, caption="Difference map (red=increase, blue=decrease)", use_container_width=True)
+
+    # ──────────────────────────────────────────────
+    #  Export & Reporting Section (Enhanced UI)
+    # ──────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("""
+        <div class="section-title">📥 Export & Reporting Analysis</div>
+        <div style="background: rgba(255, 255, 255, 0.03); 
+                    border: 1px solid rgba(255, 255, 255, 0.1); 
+                    border-radius: 16px; 
+                    padding: 24px; 
+                    margin-top: 10px;
+                    margin-bottom: 30px;">
+            <p style="color: #94a3b8; font-size: 0.95rem; margin-bottom: 20px;">
+                Securely download your analysis results. Choose from professional PDF reports or raw data formats for further processing.
+            </p>
+    """, unsafe_allow_html=True)
+    
+    # Custom CSS for Export Buttons
+    st.markdown("""
+        <style>
+        /* Style for ALL buttons in the export section */
+        div[data-testid="column"] button {
+            border-radius: 12px !important;
+            height: 55px !important;
+            font-weight: 700 !important;
+            transition: all 0.3s ease !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.05em !important;
+        }
+        
+        /* Specific styling for the PDF/Export buttons */
+        div[data-testid="column"] button {
+            background: rgba(34, 211, 238, 0.1) !important;
+            border: 1px solid rgba(34, 211, 238, 0.3) !important;
+            color: #22d3ee !important;
+        }
+        
+        div[data-testid="column"] button:hover {
+            background: #22d3ee !important;
+            color: #000000 !important;
+            border-color: #ffffff !important;
+            box-shadow: 0 0 20px rgba(34, 211, 238, 0.4) !important;
+            transform: translateY(-2px) !important;
+        }
+
+        /* Download buttons have a slightly different internal structure sometimes */
+        div[data-testid="stDownloadButton"] button {
+            width: 100% !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    exp_c1, exp_c2, exp_c3 = st.columns(3)
+    
+    # 1. PDF Report Generation
+    def generate_pdf_report(total_count, density_map_img, orig_img, zone_stats, roi_stats):
+        pdf = FPDF()
+        pdf.add_page()
+        
+        # Header
+        pdf.set_font("Helvetica", "B", 20)
+        pdf.set_text_color(8, 51, 68) # Dark Teal
+        pdf.cell(0, 15, "HMSTUNet Crowd Counting Report", ln=True, align="C")
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(128, 128, 128)
+        pdf.cell(0, 5, f"Generated on: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True, align="C")
+        pdf.ln(10)
+        
+        # Summary Metrics
+        pdf.set_font("Helvetica", "B", 14)
+        pdf.set_text_color(0, 0, 0)
+        pdf.cell(0, 10, "Summary Results", ln=True)
+        pdf.set_font("Helvetica", "", 12)
+        pdf.cell(0, 8, f"Total Estimated Crowd Count: {int(total_count):,}", ln=True)
+        pdf.ln(5)
+        
+        # Images
+        # Convert PIL/Numpy images to bytes for FPDF
+        def get_img_bytes(img):
+            if isinstance(img, np.ndarray):
+                img = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if len(img.shape)==3 else img)
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
+            return buf
+
+        orig_buf = get_img_bytes(orig_img)
+        hm_buf = get_img_bytes(density_map_img)
+        
+        pdf.image(orig_buf, x=10, w=90, title="Original Image")
+        pdf.image(hm_buf, x=110, y=pdf.get_y()-63, w=90, title="Density Heatmap")
+        pdf.ln(10)
+        
+        # Zone Stats Table
+        if zone_stats:
+            pdf.set_font("Helvetica", "B", 14)
+            pdf.cell(0, 10, "Zone Analysis (Grid)", ln=True)
+            pdf.set_font("Helvetica", "B", 10)
+            pdf.set_fill_color(34, 211, 238) # Primary Cyan
+            pdf.cell(40, 8, "Zone", 1, 0, "C", True)
+            pdf.cell(40, 8, "Count", 1, 0, "C", True)
+            pdf.cell(40, 8, "Share (%)", 1, 1, "C", True)
+            
+            pdf.set_font("Helvetica", "", 10)
+            for z in zone_stats:
+                pdf.cell(40, 7, z['zone'], 1, 0, "C")
+                pdf.cell(40, 7, str(int(round(z['count']))), 1, 0, "C")
+                pdf.cell(40, 7, f"{z['share_pct']:.2f}%", 1, 1, "C")
+            pdf.ln(10)
+            
+        # ROI Stats
+        if roi_stats:
+            pdf.set_font("Helvetica", "B", 14)
+            pdf.cell(0, 10, "Custom ROI Analysis", ln=True)
+            pdf.set_font("Helvetica", "B", 10)
+            pdf.set_fill_color(34, 211, 238)
+            pdf.cell(60, 8, "ROI Name", 1, 0, "C", True)
+            pdf.cell(40, 8, "Count", 1, 0, "C", True)
+            pdf.cell(40, 8, "Share (%)", 1, 1, "C", True)
+            
+            pdf.set_font("Helvetica", "", 10)
+            for r in roi_stats:
+                pdf.cell(60, 7, r['zone'], 1, 0, "C")
+                pdf.cell(40, 7, str(int(round(r['count']))), 1, 0, "C")
+                pdf.cell(40, 7, f"{r['share_pct']:.2f}%", 1, 1, "C")
+                
+        return bytes(pdf.output())
+
+    with exp_c1:
+        st.markdown("**PDF Full Report**")
+        if st.button("📄 Generate PDF", use_container_width=True):
+            with st.spinner("Creating PDF report..."):
+                pdf_bytes = generate_pdf_report(total_count, heatmap_rgb, orig_img, zone_stats, roi_stats)
+                st.download_button(
+                    label="⬇️ Download PDF Report",
+                    data=pdf_bytes,
+                    file_name=f"HMSTUNet_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+                
+    with exp_c2:
+        st.markdown("**Zone Data (CSV)**")
+        # Combine stats for export
+        export_df = pd.DataFrame(zone_stats)
+        csv = export_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📊 Download CSV",
+            data=csv,
+            file_name=f"Zone_Stats_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+
+    with exp_c3:
+        st.markdown("**Zone Data (Excel)**")
+        # Excel requires a buffer
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            export_df.to_excel(writer, index=False, sheet_name='Zone Stats')
+            if 'roi_stats' in locals() and roi_stats:
+                pd.DataFrame(roi_stats).to_excel(writer, index=False, sheet_name='ROI Stats')
+        
+        st.download_button(
+            label="📈 Download Excel",
+            data=buffer.getvalue(),
+            file_name=f"Full_Stats_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+    
+    st.markdown("</div>", unsafe_allow_html=True) # Close the glass container
