@@ -7,6 +7,7 @@ from io import BytesIO
 from pathlib import Path
 
 import streamlit as st
+import streamlit.components.v1 as components
 import torch
 import torchvision.transforms as T
 from PIL import Image, ImageDraw
@@ -36,8 +37,9 @@ st.markdown("""
     --bg-dark: #061d23;
     --card-bg: rgba(8, 51, 68, 0.6);
     --border: rgba(34, 211, 238, 0.2);
-    --text-main: #f8fafc;
-    --text-dim: #94a3b8;
+    /* These now use Streamlit's native variable so they auto-adapt to any theme */
+    --text-main: var(--text-color, #f8fafc);
+    --text-dim: var(--text-color, #94a3b8);
 }
 
 html, body, [class*="css"] {
@@ -49,8 +51,12 @@ h1, h2, h3, .stHeader {
 }
 
 .stApp {
-    background: radial-gradient(circle at 50% 0%, #083344 0%, #061d23 100%);
     color: var(--text-main);
+}
+@media (prefers-color-scheme: dark) {
+    .stApp {
+        background: radial-gradient(circle at 50% 0%, #083344 0%, #061d23 100%);
+    }
 }
 
 .hero-header {
@@ -161,7 +167,7 @@ h1, h2, h3, .stHeader {
     backdrop-filter: blur(10px);
 }
 .info-card b {
-    color: #fff;
+    color: var(--text-color);
     font-weight: 600;
 }
 .uploader-header {
@@ -260,7 +266,7 @@ h1, h2, h3, .stHeader {
     backdrop-filter: blur(10px) !important;
 }
 [data-testid="stUploadedFile"] > div {
-    color: #fff !important;
+    color: var(--text-color) !important;
 }
 [data-testid="stFileUploaderDeleteBtn"], [data-testid="stFileUploaderAddBtn"] {
     background-color: var(--primary) !important;
@@ -301,12 +307,12 @@ h1, h2, h3, .stHeader {
 }
 .glass-table tbody tr:hover td {
     background: rgba(34, 211, 238, 0.1);
-    color: #fff;
+    color: var(--text-color);
 }
 .glass-table tbody tr:first-child td {
     background: rgba(34, 211, 238, 0.2);
     font-weight: 700;
-    color: #fff;
+    color: var(--text-color);
     border-left: 3px solid var(--primary);
 }
 .glass-table-container::-webkit-scrollbar {
@@ -370,7 +376,7 @@ div[data-testid="stNotification"] {
     background: rgba(255,255,255,0.03);
     border: 1px solid var(--border) !important;
     padding: 0 24px;
-    color: rgba(255, 255, 255, 0.8) !important; /* Brighter text for unselected tabs */
+    color: var(--text-color) !important;
     transition: all 0.3s ease;
 }
 .stTabs [aria-selected="true"] {
@@ -424,7 +430,7 @@ div[data-baseweb="tab-highlight"] {
     font-family: 'Outfit', sans-serif !important;
     font-size: 1.4rem;
     font-weight: 700;
-    color: #fff;
+    color: var(--text-color);
     margin: 3rem 0 1.5rem;
     padding: 0.5rem 1rem;
     border-left: 4px solid var(--primary);
@@ -454,13 +460,13 @@ div[data-baseweb="tab-highlight"] {
     margin: 1.2rem 0 !important;   /* Added spacing around the component */
 }
 [data-testid="stNumberInput"] label {
-    color: var(--text-dim) !important;
+    color: var(--text-color) !important;
     font-size: 0.9rem !important;
     font-weight: 600 !important;
     margin-bottom: 0.5rem !important;
 }
 [data-testid="stNumberInput"] input {
-    color: #fff !important;
+    color: var(--text-color) !important;
     font-weight: 700 !important;
     font-size: 1.1rem !important;
 }
@@ -506,40 +512,166 @@ div[data-baseweb="tab-highlight"] {
 [data-testid="stThumbValue"] {
     display: none !important;
 }
-/* Make Colormap Segmented Control match the Tabs styling */
-[data-testid="stSegmentedControl"] {
-    gap: 16px !important;
+/* ── Colormap Segmented Control Fix (Matches Tabs) ── */
+
+/* Container - make it transparent to show separate buttons */
+[data-testid="stSegmentedControl"] [data-baseweb="button-group"],
+[data-testid="stSegmentedControl"] [role="group"],
+[data-testid="stSegmentedControl"] [role="radiogroup"] {
+    background-color: transparent !important;
+    background: transparent !important;
+    gap: 12px !important; /* Gap like tabs */
+    display: flex !important;
 }
+
+/* Individual Buttons - Unselected */
 [data-testid="stSegmentedControl"] button {
     height: 48px !important;
     border-radius: 12px !important;
-    background: rgba(255,255,255,0.03) !important;
+    background: rgba(255,255,255,0.05) !important;
     border: 1px solid var(--border) !important;
     padding: 0 24px !important;
-    color: rgba(255, 255, 255, 0.8) !important;
+    color: #ffffff !important;
     transition: all 0.3s ease !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
     margin: 0 !important;
-    min-width: 100px !important;
-    font-size: 1rem !important;
 }
-/* Active state matching the tabs exactly */
+
+/* Fix for inner button layout to prevent shifting */
+[data-testid="stSegmentedControl"] button > div {
+    background: transparent !important;
+}
+
+/* Selected button - Cyan background, Black text, White border (Matches Tabs) */
 [data-testid="stSegmentedControl"] button[aria-selected="true"],
 [data-testid="stSegmentedControl"] button[data-selected="true"] {
     background: var(--primary) !important;
-    color: #000 !important;
+    color: #000000 !important;
     font-weight: 700 !important;
     border: 3px solid #ffffff !important;
     box-shadow: 0 0 20px rgba(255, 255, 255, 0.2) !important;
 }
+
 [data-testid="stSegmentedControl"] button[aria-selected="true"] *,
 [data-testid="stSegmentedControl"] button[data-selected="true"] * {
-    color: #000 !important;
-    font-weight: 700 !important;
+    color: #000000 !important;
+    background: transparent !important;
+}
+
+/* Colormap Label - White */
+[data-testid="stSegmentedControl"] label p,
+[data-testid="stSegmentedControl"] [data-testid="stWidgetLabel"] p {
+    color: #ffffff !important;
+    opacity: 1 !important;
+    background: transparent !important;
+}
+
+/* ══════════════════════════════════════════════
+   UNIVERSAL VISIBILITY — THEME SAFE
+   ══════════════════════════════════════════════ */
+
+/* ALL widget labels (slider, number input, text input) */
+[data-testid="stWidgetLabel"] p,
+[data-testid="stWidgetLabel"] span,
+[data-testid="stNumberInput"] label p,
+[data-testid="stTextInput"] label p,
+[data-testid="stSlider"] label p {
+    color: var(--text-color) !important;
+}
+
+/* ALL input values */
+[data-testid="stNumberInput"] input,
+[data-testid="stTextInput"] input {
+    color: var(--text-color) !important;
+}
+
+/* Expander headers (ROI 1, ROI 2 etc.) - Force Dark Background & White Text */
+[data-testid="stExpander"] {
+    background: transparent !important;
+    border: 1px solid var(--border) !important;
+}
+[data-testid="stExpander"] summary {
+    background-color: #0d3040 !important; /* Dark Teal */
+    color: #ffffff !important;
+    border-radius: 8px !important;
+}
+[data-testid="stExpander"] summary:hover {
+    background-color: #164e63 !important;
+}
+[data-testid="stExpander"] summary p,
+[data-testid="stExpander"] summary span,
+[data-testid="stExpander"] summary div {
+    color: #ffffff !important;
+    font-weight: 800 !important; /* Bolder */
+}
+
+/* ALL widget labels (slider, number input, text input, zone name, x/y coords) */
+[data-testid="stWidgetLabel"] p,
+[data-testid="stWidgetLabel"] span,
+[data-testid="stWidgetLabel"] label,
+label[data-testid="stWidgetLabel"] p,
+.stSlider label p,
+.stTextInput label p,
+.stNumberInput label p {
+    color: #ffffff !important;
+    opacity: 1 !important;
+    font-weight: 800 !important; /* Bolder */
+    font-size: 0.95rem !important;
+}
+
+/* Uploader instructions (200MB line) */
+[data-testid="stFileUploaderDropzoneInstructions"],
+[data-testid="stFileUploaderDropzoneInstructions"] * {
+    color: #ffffff !important;
+    opacity: 1 !important;
+}
+
+/* General Markdown / captions / custom classes */
+.stMarkdown p, .stCaption, .uploader-desc, .step-label,
+.metric-badge .label, .metric-badge .unit {
+    color: #ffffff !important;
+    opacity: 1 !important;
+}
+
+/* Header buttons — Cyan visible on both themes */
+header[data-testid="stHeader"] button,
+header[data-testid="stHeader"] button p,
+header[data-testid="stHeader"] svg {
+    color: #22d3ee !important;
+    fill: #22d3ee !important;
+}
+
+/* Help / Hint Icons (Question Marks) - Make them Pop */
+[data-testid="stHelpIcon"], 
+[data-testid="stTooltipIcon"],
+div[data-testid="stMarkdown"] svg[data-testid="stHelpIcon"] {
+    color: #22d3ee !important;
+    fill: #22d3ee !important;
+    transform: scale(1.2); /* Slightly larger */
+    transition: all 0.3s ease;
+    opacity: 1 !important;
+}
+[data-testid="stHelpIcon"]:hover {
+    filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.8));
+    transform: scale(1.3);
+}
+
+/* Title always stays Cyan */
+.hero-header h1, .hero-header h1 * {
+    color: var(--primary) !important;
+    background: transparent !important;
+}
+
+/* ══════════════════════════════════════════════
+   LIGHT MODE SPECIFICS
+   ══════════════════════════════════════════════ */
+@media (prefers-color-scheme: light) {
+    .stApp {
+        background-image: radial-gradient(circle at 50% 0%, #f1f5f9 0%, #f8fafc 100%) !important;
+        background-color: #f8fafc !important;
+    }
 }
 </style>
+
 """, unsafe_allow_html=True)
 
 # ──────────────────────────────────────────────
@@ -877,6 +1009,10 @@ if st.session_state.get("file_id") != file_id:
     st.session_state.orig_img = orig_img
     st.session_state.density_map = density_map
     st.session_state.total_count = total_count
+    st.session_state[f"result_{file_id}"] = True
+else:
+    # Ensure result state is set if already cached
+    st.session_state[f"result_{file_id}"] = True
 
 orig_img: Image.Image = st.session_state.orig_img
 density_map: np.ndarray = st.session_state.density_map
@@ -935,6 +1071,75 @@ with tab_single:
         "PLASMA": cv2.COLORMAP_PLASMA,
         "VIRIDIS": cv2.COLORMAP_VIRIDIS
     }
+    
+    # LOCAL CSS for this specific widget to ensure it updates
+    st.markdown("""
+        <style>
+        /* Target the actual Button Group container */
+        [data-testid="stButtonGroup"] {
+            background-color: transparent !important;
+            background: transparent !important;
+            gap: 16px !important; /* Increased distance */
+            display: flex !important;
+            flex-wrap: wrap !important; /* Allow wrapping if small screen */
+            padding: 10px 0 !important;
+            width: 100% !important;
+        }
+        
+        /* Individual Buttons - Base styling */
+        [data-testid^="stBaseButton-segmented_control"] {
+            height: 48px !important;
+            border-radius: 12px !important;
+            background: rgba(255,255,255,0.05) !important;
+            border: 1px solid rgba(255,255,255,0.1) !important;
+            padding: 0 25px !important; /* More horizontal padding */
+            color: #ffffff !important;
+            transition: all 0.3s ease !important;
+            margin: 0 !important;
+            flex: 0 1 auto !important; /* Don't force equal width, grow to fit text */
+            min-width: 120px !important; /* Ensure enough room for text */
+            white-space: nowrap !important; /* PREVENT TRUNCATION (PL...) */
+            overflow: visible !important;
+        }
+        
+        /* Force text inside to be full and visible */
+        [data-testid^="stBaseButton-segmented_control"] div,
+        [data-testid^="stBaseButton-segmented_control"] p {
+            overflow: visible !important;
+            text-overflow: clip !important;
+            white-space: nowrap !important;
+            width: auto !important;
+        }
+        
+        /* ACTIVE / SELECTED Button - Matches Tabs (Cyan) */
+        [data-testid="stBaseButton-segmented_controlActive"] {
+            background: #22d3ee !important; /* Cyan */
+            color: #000000 !important;
+            font-weight: 700 !important;
+            border: 3px solid #ffffff !important;
+            box-shadow: 0 0 20px rgba(34, 211, 238, 0.4) !important;
+        }
+        
+        /* Force black text on active button children */
+        [data-testid="stBaseButton-segmented_controlActive"] * {
+            color: #000000 !important;
+        }
+        
+        /* Label visibility fix */
+        [data-testid="stWidgetLabel"] p {
+            color: #ffffff !important;
+            font-weight: 600 !important;
+            margin-bottom: 12px !important;
+        }
+
+        /* Hover effect */
+        [data-testid^="stBaseButton-segmented_control"]:hover {
+            border-color: #22d3ee !important;
+            background: rgba(34, 211, 238, 0.1) !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
     selected_cmap_name = st.segmented_control(
         "🎨 Select Colormap",
         options=list(cmap_options.keys()),
