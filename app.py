@@ -7,6 +7,7 @@ from io import BytesIO
 from pathlib import Path
 
 import streamlit as st
+import streamlit.components.v1 as components
 import torch
 import torchvision.transforms as T
 from PIL import Image, ImageDraw
@@ -14,6 +15,10 @@ import numpy as np
 import cv2
 
 from model import HMSTUNet
+import pandas as pd
+from fpdf import FPDF
+import io
+import datetime
 
 # ──────────────────────────────────────────────
 #  Page config & custom CSS
@@ -27,91 +32,650 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+:root {
+    --primary: #22d3ee;
+    --primary-glow: rgba(34, 211, 238, 0.3);
+    --accent: #0ea5e9;
+    --bg-dark: #061d23;
+    --card-bg: rgba(8, 51, 68, 0.6);
+    --border: rgba(34, 211, 238, 0.2);
+    /* These now use Streamlit's native variable so they auto-adapt to any theme */
+    --text-main: var(--text-color, #f8fafc);
+    --text-dim: var(--text-color, #94a3b8);
+}
 
 html, body, [class*="css"] {
     font-family: 'Inter', sans-serif;
 }
 
+h1, h2, h3, .stHeader {
+    font-family: 'Outfit', sans-serif !important;
+}
+
 .stApp {
-    background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
-    min-height: 100vh;
+    color: var(--text-main);
+}
+@media (prefers-color-scheme: dark) {
+    .stApp {
+        background: radial-gradient(circle at 50% 0%, #083344 0%, #061d23 100%);
+    }
 }
 
 .hero-header {
     text-align: center;
-    padding: 2.5rem 1rem 1.5rem;
+    padding: 3rem 1rem 1rem;
 }
 .hero-header h1 {
-    font-size: 2.8rem;
+    font-size: 3.5rem;
     font-weight: 700;
-    background: linear-gradient(90deg, #a78bfa, #60a5fa, #34d399);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    margin-bottom: 0.4rem;
+    letter-spacing: -0.02em;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
 }
 .hero-header p {
-    color: #94a3b8;
-    font-size: 1.05rem;
-    font-weight: 400;
+    color: var(--text-dim);
+    font-size: 1.1rem;
+    max-width: 600px;
+    margin: 0 auto;
 }
 
-.glass-card {
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 16px;
-    padding: 1.5rem;
-    backdrop-filter: blur(12px);
-    margin-bottom: 1.2rem;
+/* Stepper Component */
+.stepper-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5rem;
+    margin: 3rem 0;
+    position: relative;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
 }
-
-.metric-badge {
-    background: linear-gradient(135deg, rgba(167,139,250,0.2), rgba(96,165,250,0.2));
-    border: 1px solid rgba(167,139,250,0.4);
-    border-radius: 12px;
-    padding: 1rem 1.5rem;
-    text-align: center;
-    margin: 0.4rem;
+.stepper-line {
+    position: absolute;
+    top: 20px;
+    left: 10%;
+    right: 10%;
+    height: 2px;
+    background: var(--border);
+    z-index: 0;
 }
-.metric-badge .label {
-    font-size: 0.78rem;
-    color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-weight: 600;
+.step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+    opacity: 0.5;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.metric-badge .value {
-    font-size: 2.4rem;
-    font-weight: 700;
-    color: #a78bfa;
-    line-height: 1.2;
+.step.active {
+    opacity: 1;
+    transform: translateY(-2px);
 }
-.metric-badge .unit {
-    font-size: 0.85rem;
-    color: #64748b;
-}
-
-.section-title {
-    font-size: 1.15rem;
-    font-weight: 600;
-    color: #e2e8f0;
-    margin: 1.5rem 0 0.8rem;
+.step-circle {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--bg-dark);
+    border: 2px solid var(--border);
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    justify-content: center;
+    font-weight: 700;
+    margin-bottom: 0.8rem;
+    color: var(--text-dim);
+    box-shadow: 0 0 20px rgba(0,0,0,0.3);
+}
+.active .step-circle {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #000;
+    box-shadow: 0 0 25px var(--primary-glow);
+}
+.step-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+.active .step-label {
+    color: var(--primary);
+    text-shadow: 0 0 10px var(--primary-glow);
 }
 
-.info-box {
-    background: rgba(96,165,250,0.1);
-    border-left: 3px solid #60a5fa;
-    border-radius: 0 8px 8px 0;
-    padding: 0.8rem 1rem;
-    color: #bfdbfe;
-    font-size: 0.9rem;
+[data-testid="stFileUploader"] {
+    background: var(--card-bg);
+    border: 2px dashed var(--border);
+    border-radius: 24px;
+    padding: 3rem 2rem 2rem;
+    backdrop-filter: blur(20px);
+    margin: 0.5rem 0 0.5rem;
+    text-align: center;
+    position: relative;
+}
+.info-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 0;
+    backdrop-filter: blur(10px);
+}
+.info-card b {
+    color: var(--text-color);
+    font-weight: 600;
+}
+.uploader-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--primary);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.2rem;
+    padding-left: 0.5rem;
+    letter-spacing: 0.01em;
+}
+.uploader-header span {
+    font-size: 1.3rem;
+    filter: drop-shadow(0 0 8px var(--primary-glow));
+}
+.help-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid var(--text-dim);
+    border-radius: 50%;
+    font-size: 11px;
+    color: var(--text-dim);
+    cursor: help;
+    margin-left: 8px;
+    transition: all 0.3s ease;
+}
+.help-icon:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    box-shadow: 0 0 8px var(--primary-glow);
+}
+.tooltip {
+    position: relative;
+    display: inline-block;
+}
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 220px;
+    background-color: #ffffff;
+    color: #1e293b;
+    text-align: center;
+    border-radius: 8px;
+    padding: 8px 12px;
+    position: absolute;
+    z-index: 1000;
+    bottom: 150%;
+    left: 50%;
+    margin-left: -110px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-size: 12px;
+    font-weight: 500;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    line-height: 1.4;
+}
+.tooltip .tooltiptext::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #ffffff transparent transparent transparent;
+}
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+}
+[data-testid="stFileUploaderDropzone"] {
+    background: rgba(255,255,255,0.02) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.2rem;
+    padding: 3rem !important;
+    margin-top: 1rem;
+}
+/* Style for uploaded file chips */
+[data-testid="stFileUploaderUploadedFiles"] {
+    padding-top: 1.5rem;
+}
+[data-testid="stUploadedFile"] {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 10px !important;
+    padding: 0.5rem 1rem !important;
+    backdrop-filter: blur(10px) !important;
+}
+[data-testid="stUploadedFile"] > div {
+    color: var(--text-color) !important;
+}
+[data-testid="stFileUploaderDeleteBtn"], [data-testid="stFileUploaderAddBtn"] {
+    background-color: var(--primary) !important;
+    color: #000 !important;
+    border-radius: 8px !important;
+    transition: all 0.3s ease !important;
+}
+/* Glassmorphism Table Styling */
+.glass-table-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgba(8, 51, 68, 0.4);
+}
+.glass-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: var(--text-main);
+    font-size: 0.95rem;
+}
+.glass-table th {
+    background: rgba(34, 211, 238, 0.15);
+    color: var(--primary);
+    font-weight: 600;
+    text-align: left;
+    padding: 12px 16px;
+    position: sticky;
+    top: 0;
+    backdrop-filter: blur(8px);
+    z-index: 1;
+    border-bottom: 2px solid var(--primary);
+}
+.glass-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    transition: background 0.2s ease;
+}
+.glass-table tbody tr:hover td {
+    background: rgba(34, 211, 238, 0.1);
+    color: var(--text-color);
+}
+.glass-table tbody tr:first-child td {
+    background: rgba(34, 211, 238, 0.2);
+    font-weight: 700;
+    color: var(--text-color);
+    border-left: 3px solid var(--primary);
+}
+.glass-table-container::-webkit-scrollbar {
+    width: 6px;
+}
+.glass-table-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+.glass-table-container::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 10px;
+}
+
+[data-testid="stFileUploaderDeleteBtn"]:hover {
+    background-color: #ef4444 !important; /* Red on hover for delete */
+    color: #fff !important;
+}
+[data-testid="stFileUploaderDropzone"] button {
+    background-color: var(--primary) !important;
+    color: #000 !important;
+    font-weight: 700 !important;
+    border-radius: 10px !important;
+    border: none !important;
+    padding: 0.6rem 2rem !important;
+    transition: all 0.3s ease !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    box-shadow: none !important;
+}
+[data-testid="stFileUploaderDropzone"] button:hover {
+    transform: translateY(-2px) !important;
+    filter: brightness(1.1);
+    box-shadow: none !important;
+}
+.uploader-desc {
+    color: var(--text-dim);
+    font-size: 1.05rem;
+    max-width: 650px;
+    margin: 0 auto;
+    line-height: 1.6;
+    text-align: center;
+}
+
+/* Override Streamlit Info Box */
+div[data-testid="stNotification"] {
+    background: rgba(8, 51, 68, 0.8) !important;
+    border: 1px solid var(--border) !important;
+    border-left: 5px solid var(--primary) !important;
+    color: var(--text-main) !important;
+    border-radius: 8px;
+}
+
+.stTabs [data-baseweb="tab-list"] {
+    gap: 12px;
+    background: transparent;
+    margin-bottom: 1.5rem;
+}
+.stTabs [data-baseweb="tab"] {
+    height: 48px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border) !important;
+    padding: 0 24px;
+    color: var(--text-color) !important;
+    transition: all 0.3s ease;
+}
+.stTabs [aria-selected="true"] {
+    background: var(--primary) !important;
+    color: #000 !important; /* Fixed contrast */
+    font-weight: 700 !important;
+    border: 3px solid #ffffff !important; /* Thick White boundary */
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+/* Hide default red underline */
+div[data-baseweb="tab-highlight"] {
+    background-color: transparent !important;
+}
+
+/* Analysis Section Styling */
+.metric-badge {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    transition: transform 0.3s ease;
     margin-bottom: 1rem;
 }
+.metric-badge:hover {
+    transform: translateY(-5px);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--primary);
+}
+.metric-badge .label {
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.6rem;
+}
+.metric-badge .value {
+    color: var(--primary);
+    font-size: 2.2rem;
+    font-weight: 700;
+    line-height: 1;
+}
+.metric-badge .unit {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-top: 0.4rem;
+}
+.section-title {
+    font-family: 'Outfit', sans-serif !important;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-color);
+    margin: 3rem 0 1.5rem;
+    padding: 0.5rem 1rem;
+    border-left: 4px solid var(--primary);
+    background: linear-gradient(90deg, rgba(34, 211, 238, 0.1) 0%, transparent 100%);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    letter-spacing: -0.01em;
+    border-radius: 0 8px 8px 0;
+}
+.info-box {
+    background: rgba(34, 211, 238, 0.05);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 2rem;
+    color: var(--text-main);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+/* Custom Number Input Styling */
+[data-testid="stNumberInput"] {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 12px !important;
+    padding: 0.8rem !important; /* Increased distance from borders */
+    margin: 1.2rem 0 !important;   /* Added spacing around the component */
+}
+[data-testid="stNumberInput"] label {
+    color: var(--text-color) !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    margin-bottom: 0.5rem !important;
+}
+[data-testid="stNumberInput"] input {
+    color: var(--text-color) !important;
+    font-weight: 700 !important;
+    font-size: 1.1rem !important;
+}
+[data-testid="stNumberInputStepDown"], [data-testid="stNumberInputStepUp"] {
+    background-color: rgba(34, 211, 238, 0.1) !important;
+    color: var(--primary) !important;
+    border-radius: 8px !important;
+    border: none !important;
+    transition: all 0.3s ease !important;
+}
+[data-testid="stNumberInputStepUp"] {
+    margin-left: 8px !important; /* Added gap between buttons */
+}
+[data-testid="stNumberInputStepDown"]:hover {
+    background-color: #ef4444 !important; /* Red for minus */
+    color: #fff !important;
+}
+[data-testid="stNumberInputStepUp"]:hover {
+    background-color: #22c55e !important; /* Green for plus */
+    color: #fff !important;
+}
+
+/* Custom Slider Thumb Styling */
+[data-testid="stSlider"] [data-baseweb="slider"] {
+    padding-top: 10px !important;
+}
+[data-testid="stSlider"] [role="slider"] {
+    background-color: #3b82f6 !important; /* Blue center */
+    border: 3px solid #ffffff !important; /* Thick white ring */
+    width: 20px !important;
+    height: 20px !important;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.6) !important; /* Subtle glow */
+    top: 2px !important; /* Center on track */
+    color: transparent !important; /* Hide text on thumb */
+    transition: box-shadow 0.2s ease !important;
+}
+
+[data-testid="stSlider"] [role="slider"]:hover,
+[data-testid="stSlider"] [role="slider"]:active {
+    box-shadow: 0 0 16px rgba(59, 130, 246, 1.0) !important;
+}
+[data-testid="stSliderTickBar"],
+[data-testid="stThumbValue"] {
+    display: none !important;
+}
+/* ── Colormap Segmented Control Fix (Matches Tabs) ── */
+
+/* Container - make it transparent to show separate buttons */
+[data-testid="stSegmentedControl"] [data-baseweb="button-group"],
+[data-testid="stSegmentedControl"] [role="group"],
+[data-testid="stSegmentedControl"] [role="radiogroup"] {
+    background-color: transparent !important;
+    background: transparent !important;
+    gap: 12px !important; /* Gap like tabs */
+    display: flex !important;
+}
+
+/* Individual Buttons - Unselected */
+[data-testid="stSegmentedControl"] button {
+    height: 48px !important;
+    border-radius: 12px !important;
+    background: rgba(255,255,255,0.05) !important;
+    border: 1px solid var(--border) !important;
+    padding: 0 24px !important;
+    color: #ffffff !important;
+    transition: all 0.3s ease !important;
+    margin: 0 !important;
+}
+
+/* Fix for inner button layout to prevent shifting */
+[data-testid="stSegmentedControl"] button > div {
+    background: transparent !important;
+}
+
+/* Selected button - Cyan background, Black text, White border (Matches Tabs) */
+[data-testid="stSegmentedControl"] button[aria-selected="true"],
+[data-testid="stSegmentedControl"] button[data-selected="true"] {
+    background: var(--primary) !important;
+    color: #000000 !important;
+    font-weight: 700 !important;
+    border: 3px solid #ffffff !important;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2) !important;
+}
+
+[data-testid="stSegmentedControl"] button[aria-selected="true"] *,
+[data-testid="stSegmentedControl"] button[data-selected="true"] * {
+    color: #000000 !important;
+    background: transparent !important;
+}
+
+/* Colormap Label - White */
+[data-testid="stSegmentedControl"] label p,
+[data-testid="stSegmentedControl"] [data-testid="stWidgetLabel"] p {
+    color: #ffffff !important;
+    opacity: 1 !important;
+    background: transparent !important;
+}
+
+/* ══════════════════════════════════════════════
+   UNIVERSAL VISIBILITY — THEME SAFE
+   ══════════════════════════════════════════════ */
+
+/* ALL widget labels (slider, number input, text input) */
+[data-testid="stWidgetLabel"] p,
+[data-testid="stWidgetLabel"] span,
+[data-testid="stNumberInput"] label p,
+[data-testid="stTextInput"] label p,
+[data-testid="stSlider"] label p {
+    color: var(--text-color) !important;
+}
+
+/* ALL input values */
+[data-testid="stNumberInput"] input,
+[data-testid="stTextInput"] input {
+    color: var(--text-color) !important;
+}
+
+/* Expander headers (ROI 1, ROI 2 etc.) - Force Dark Background & White Text */
+[data-testid="stExpander"] {
+    background: transparent !important;
+    border: 1px solid var(--border) !important;
+}
+[data-testid="stExpander"] summary {
+    background-color: #0d3040 !important; /* Dark Teal */
+    color: #ffffff !important;
+    border-radius: 8px !important;
+}
+[data-testid="stExpander"] summary:hover {
+    background-color: #164e63 !important;
+}
+[data-testid="stExpander"] summary p,
+[data-testid="stExpander"] summary span,
+[data-testid="stExpander"] summary div {
+    color: #ffffff !important;
+    font-weight: 800 !important; /* Bolder */
+}
+
+/* ALL widget labels (slider, number input, text input, zone name, x/y coords) */
+[data-testid="stWidgetLabel"] p,
+[data-testid="stWidgetLabel"] span,
+[data-testid="stWidgetLabel"] label,
+label[data-testid="stWidgetLabel"] p,
+.stSlider label p,
+.stTextInput label p,
+.stNumberInput label p {
+    color: #ffffff !important;
+    opacity: 1 !important;
+    font-weight: 800 !important; /* Bolder */
+    font-size: 0.95rem !important;
+}
+
+/* Uploader instructions (200MB line) */
+[data-testid="stFileUploaderDropzoneInstructions"],
+[data-testid="stFileUploaderDropzoneInstructions"] * {
+    color: #ffffff !important;
+    opacity: 1 !important;
+}
+
+/* General Markdown / captions / custom classes */
+.stMarkdown p, .stCaption, .uploader-desc, .step-label,
+.metric-badge .label, .metric-badge .unit {
+    color: #ffffff !important;
+    opacity: 1 !important;
+}
+
+/* Header buttons — Cyan visible on both themes */
+header[data-testid="stHeader"] button,
+header[data-testid="stHeader"] button p,
+header[data-testid="stHeader"] svg {
+    color: #22d3ee !important;
+    fill: #22d3ee !important;
+}
+
+/* Help / Hint Icons (Question Marks) - Make them Pop */
+[data-testid="stHelpIcon"], 
+[data-testid="stTooltipIcon"],
+div[data-testid="stMarkdown"] svg[data-testid="stHelpIcon"] {
+    color: #22d3ee !important;
+    fill: #22d3ee !important;
+    transform: scale(1.2); /* Slightly larger */
+    transition: all 0.3s ease;
+    opacity: 1 !important;
+}
+[data-testid="stHelpIcon"]:hover {
+    filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.8));
+    transform: scale(1.3);
+}
+
+/* Title always stays Cyan */
+.hero-header h1, .hero-header h1 * {
+    color: var(--primary) !important;
+    background: transparent !important;
+}
+
+/* ══════════════════════════════════════════════
+   LIGHT MODE SPECIFICS
+   ══════════════════════════════════════════════ */
+@media (prefers-color-scheme: light) {
+    .stApp {
+        background-image: radial-gradient(circle at 50% 0%, #f1f5f9 0%, #f8fafc 100%) !important;
+        background-color: #f8fafc !important;
+    }
+}
 </style>
+
 """, unsafe_allow_html=True)
 
 # ──────────────────────────────────────────────
@@ -215,6 +779,20 @@ def density_to_heatmap(density_map: np.ndarray, cmap=cv2.COLORMAP_JET) -> np.nda
     dm_norm = density_map / (density_map.max() + 1e-5)
     heatmap_bgr = cv2.applyColorMap(np.uint8(255 * dm_norm), cmap)
     return cv2.cvtColor(heatmap_bgr, cv2.COLOR_BGR2RGB)
+
+
+def render_stepper(step_idx):
+    steps = ["Upload", "Analysis", "Results"]
+    html = '<div class="stepper-container">'
+    html += '<div class="stepper-line"></div>'
+    for i, label in enumerate(steps):
+        active_class = "active" if i == step_idx else ""
+        html += f'<div class="step {active_class}">'
+        html += f'<div class="step-circle">{i+1}</div>'
+        html += f'<div class="step-label">{label}</div>'
+        html += '</div>'
+    html += '</div>'
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def overlay_heatmap(orig_pil: Image.Image, heatmap_rgb: np.ndarray, alpha: float = 0.55) -> np.ndarray:
@@ -353,14 +931,20 @@ def diff_to_heatmap(diff_map: np.ndarray):
 
 
 # ──────────────────────────────────────────────
-#  Hero header
+#  Hero header & Stepper
 # ──────────────────────────────────────────────
 st.markdown("""
 <div class="hero-header">
-    <h1>👥 HMSTUNet Crowd Counter</h1>
-    <p>AI-powered crowd density estimation</p>
+    <h1>
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary); margin-bottom: -5px; margin-right: 10px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+        HMSTUNet Crowd Counter
+    </h1>
+    <p>Advanced neural crowd analysis using HMSTUNet architecture for real-time density estimation and spatial intelligence.</p>
 </div>
 """, unsafe_allow_html=True)
+
+# Placeholder for stepper to keep it at the top
+stepper_container = st.empty()
 
 # ──────────────────────────────────────────────
 #  Load model
@@ -378,20 +962,40 @@ except Exception as e:
 # ──────────────────────────────────────────────
 #  File uploader
 # ──────────────────────────────────────────────
-st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+st.markdown('<div style="position: relative;">', unsafe_allow_html=True)
+st.markdown(f'''
+    <div class="uploader-header">
+        <span>📁</span> Select source image for crowd analysis
+        <div class="tooltip">
+            <div class="help-icon">?</div>
+            <span class="tooltiptext">High resolution JPG or PNG files recommended.</span>
+        </div>
+    </div>
+''', unsafe_allow_html=True)
 uploaded_file = st.file_uploader(
-    "📂 Upload a crowd image (JPG / PNG)",
+    "Upload Image",
     type=["jpg", "jpeg", "png"],
-    help="Upload any image containing people to estimate the crowd count.",
+    label_visibility="collapsed"
 )
 st.markdown('</div>', unsafe_allow_html=True)
 
+# Step tracking
+current_step = 0
+if uploaded_file is not None:
+    current_step = 1
+    file_id = upload_file_id(uploaded_file)
+    if f"result_{file_id}" in st.session_state:
+        current_step = 2
+
+with stepper_container:
+    render_stepper(current_step)
+
 if uploaded_file is None:
     st.markdown("""
-    <div class="info-box">
-        ℹ️ Upload an image above to start. The model will generate a full density map and
-        estimate the total crowd count.
-    </div>
+        <div class="info-card">
+            <span>ℹ️</span> 
+            <div><b>Getting Started:</b> Upload a crowd image above to begin the multi-scale density analysis.</div>
+        </div>
     """, unsafe_allow_html=True)
     st.stop()
 
@@ -409,6 +1013,10 @@ if st.session_state.get("file_id") != file_id:
     st.session_state.orig_img = orig_img
     st.session_state.density_map = density_map
     st.session_state.total_count = total_count
+    st.session_state[f"result_{file_id}"] = True
+else:
+    # Ensure result state is set if already cached
+    st.session_state[f"result_{file_id}"] = True
 
 orig_img: Image.Image = st.session_state.orig_img
 density_map: np.ndarray = st.session_state.density_map
@@ -467,13 +1075,84 @@ with tab_single:
         "PLASMA": cv2.COLORMAP_PLASMA,
         "VIRIDIS": cv2.COLORMAP_VIRIDIS
     }
-    selected_cmap_name = st.radio(
+    
+    # LOCAL CSS for this specific widget to ensure it updates
+    st.markdown("""
+        <style>
+        /* Target the actual Button Group container */
+        [data-testid="stButtonGroup"] {
+            background-color: transparent !important;
+            background: transparent !important;
+            gap: 16px !important; /* Increased distance */
+            display: flex !important;
+            flex-wrap: wrap !important; /* Allow wrapping if small screen */
+            padding: 10px 0 !important;
+            width: 100% !important;
+        }
+        
+        /* Individual Buttons - Base styling */
+        [data-testid^="stBaseButton-segmented_control"] {
+            height: 48px !important;
+            border-radius: 12px !important;
+            background: rgba(255,255,255,0.05) !important;
+            border: 1px solid rgba(255,255,255,0.1) !important;
+            padding: 0 25px !important; /* More horizontal padding */
+            color: #ffffff !important;
+            transition: all 0.3s ease !important;
+            margin: 0 !important;
+            flex: 0 1 auto !important; /* Don't force equal width, grow to fit text */
+            min-width: 120px !important; /* Ensure enough room for text */
+            white-space: nowrap !important; /* PREVENT TRUNCATION (PL...) */
+            overflow: visible !important;
+        }
+        
+        /* Force text inside to be full and visible */
+        [data-testid^="stBaseButton-segmented_control"] div,
+        [data-testid^="stBaseButton-segmented_control"] p {
+            overflow: visible !important;
+            text-overflow: clip !important;
+            white-space: nowrap !important;
+            width: auto !important;
+        }
+        
+        /* ACTIVE / SELECTED Button - Matches Tabs (Cyan) */
+        [data-testid="stBaseButton-segmented_controlActive"] {
+            background: #22d3ee !important; /* Cyan */
+            color: #000000 !important;
+            font-weight: 700 !important;
+            border: 3px solid #ffffff !important;
+            box-shadow: 0 0 20px rgba(34, 211, 238, 0.4) !important;
+        }
+        
+        /* Force black text on active button children */
+        [data-testid="stBaseButton-segmented_controlActive"] * {
+            color: #000000 !important;
+        }
+        
+        /* Label visibility fix */
+        [data-testid="stWidgetLabel"] p {
+            color: #ffffff !important;
+            font-weight: 600 !important;
+            margin-bottom: 12px !important;
+        }
+
+        /* Hover effect */
+        [data-testid^="stBaseButton-segmented_control"]:hover {
+            border-color: #22d3ee !important;
+            background: rgba(34, 211, 238, 0.1) !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    selected_cmap_name = st.segmented_control(
         "🎨 Select Colormap",
         options=list(cmap_options.keys()),
-        index=0,
-        horizontal=True,
+        default="JET",
+        selection_mode="single",
         key="single_cmap",
     )
+    if not selected_cmap_name:
+        selected_cmap_name = "JET"
 
     heatmap_rgb = density_to_heatmap(density_map, cmap=cmap_options[selected_cmap_name])
     overlay_rgb = overlay_heatmap(orig_img, heatmap_rgb, alpha=0.60)
@@ -528,9 +1207,17 @@ with tab_zone:
     st.markdown("##### Grid overview")
     zc1, zc2 = st.columns(2)
     with zc1:
-        rows = st.slider("Grid rows", min_value=2, max_value=6, value=3)
+        if "grid_rows" not in st.session_state: st.session_state.grid_rows = 3
+        c1, c2 = st.columns([1, 1])
+        c1.markdown("<div style='color: var(--text-dim); font-size: 0.95rem; font-weight: 500;'>Grid rows</div>", unsafe_allow_html=True)
+        c2.markdown(f"<div style='text-align: right; color: var(--text-main); font-weight: 600;'>{st.session_state.grid_rows}</div>", unsafe_allow_html=True)
+        rows = st.slider("Grid rows", min_value=2, max_value=6, value=st.session_state.grid_rows, label_visibility="collapsed", key="grid_rows")
     with zc2:
-        cols = st.slider("Grid columns", min_value=2, max_value=6, value=3)
+        if "grid_cols" not in st.session_state: st.session_state.grid_cols = 3
+        c1, c2 = st.columns([1, 1])
+        c1.markdown("<div style='color: var(--text-dim); font-size: 0.95rem; font-weight: 500;'>Grid columns</div>", unsafe_allow_html=True)
+        c2.markdown(f"<div style='text-align: right; color: var(--text-main); font-weight: 600;'>{st.session_state.grid_cols}</div>", unsafe_allow_html=True)
+        cols = st.slider("Grid columns", min_value=2, max_value=6, value=st.session_state.grid_cols, label_visibility="collapsed", key="grid_cols")
 
     zone_stats = compute_zone_stats(density_map, rows, cols)
     hotspot = zone_stats[0]
@@ -540,18 +1227,22 @@ with tab_zone:
     with v1:
         st.image(zone_grid_img, caption=f"Grid overlay (hotspot: {hotspot['zone']})", use_container_width=True)
     with v2:
-        st.dataframe(
-            [
-                {
-                    "Zone": z["zone"],
-                    "Count (est.)": int(round(z["count"])),
-                    "Share (%)": round(z["share_pct"], 2),
-                }
-                for z in zone_stats
-            ],
-            use_container_width=True,
-            hide_index=True,
-        )
+        html_rows = ""
+        for z in zone_stats:
+            html_rows += f"<tr><td>{z['zone']}</td><td>{int(round(z['count']))}</td><td>{round(z['share_pct'], 2)}</td></tr>"
+            
+        st.markdown(f"""
+        <div class="glass-table-container">
+            <table class="glass-table">
+                <thead>
+                    <tr><th>Zone</th><th>Count (est.)</th><th>Share (%)</th></tr>
+                </thead>
+                <tbody>
+                    {html_rows}
+                </tbody>
+            </table>
+        </div>
+        """, unsafe_allow_html=True)
 
     st.markdown("##### Perspective-aware custom ROI zones")
     st.caption("Define meaningful areas (e.g., entrance, stage-left, exits) using pixel ranges.")
@@ -591,19 +1282,22 @@ with tab_zone:
     with r1:
         st.image(roi_overlay, caption=f"Custom ROI overlay (hotspot: {roi_hotspot['zone']})", use_container_width=True)
     with r2:
-        st.dataframe(
-            [
-                {
-                    "ROI Zone": z["zone"],
-                    "Count (est.)": int(round(z["count"])),
-                    "Share (%)": round(z["share_pct"], 2),
-                    "Box (x0,y0,x1,y1)": f"({z['x0']},{z['y0']},{z['x1']},{z['y1']})",
-                }
-                for z in roi_stats
-            ],
-            use_container_width=True,
-            hide_index=True,
-        )
+        html_rows = ""
+        for z in roi_stats:
+            html_rows += f"<tr><td>{z['zone']}</td><td>{int(round(z['count']))}</td><td>{round(z['share_pct'], 2)}</td><td>({z['x0']},{z['y0']},{z['x1']},{z['y1']})</td></tr>"
+            
+        st.markdown(f"""
+        <div class="glass-table-container">
+            <table class="glass-table">
+                <thead>
+                    <tr><th>ROI Zone</th><th>Count (est.)</th><th>Share (%)</th><th>Box (x0,y0,x1,y1)</th></tr>
+                </thead>
+                <tbody>
+                    {html_rows}
+                </tbody>
+            </table>
+        </div>
+        """, unsafe_allow_html=True)
 
 with tab_compare:
     st.markdown('<div class="section-title">🔁 Before/After Comparative Analysis</div>', unsafe_allow_html=True)
@@ -651,3 +1345,175 @@ with tab_compare:
             st.image(compare_orig, caption="After image", use_container_width=True)
         with d3:
             st.image(diff_overlay, caption="Difference map (red=increase, blue=decrease)", use_container_width=True)
+
+    # ──────────────────────────────────────────────
+    #  Export & Reporting Section (Enhanced UI)
+    # ──────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("""
+        <div class="section-title">📥 Export & Reporting Analysis</div>
+        <div style="background: rgba(255, 255, 255, 0.03); 
+                    border: 1px solid rgba(255, 255, 255, 0.1); 
+                    border-radius: 16px; 
+                    padding: 24px; 
+                    margin-top: 10px;
+                    margin-bottom: 30px;">
+            <p style="color: #94a3b8; font-size: 0.95rem; margin-bottom: 20px;">
+                Securely download your analysis results. Choose from professional PDF reports or raw data formats for further processing.
+            </p>
+    """, unsafe_allow_html=True)
+    
+    # Custom CSS for Export Buttons
+    st.markdown("""
+        <style>
+        /* Style for ALL buttons in the export section */
+        div[data-testid="column"] button {
+            border-radius: 12px !important;
+            height: 55px !important;
+            font-weight: 700 !important;
+            transition: all 0.3s ease !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.05em !important;
+        }
+        
+        /* Specific styling for the PDF/Export buttons */
+        div[data-testid="column"] button {
+            background: rgba(34, 211, 238, 0.1) !important;
+            border: 1px solid rgba(34, 211, 238, 0.3) !important;
+            color: #22d3ee !important;
+        }
+        
+        div[data-testid="column"] button:hover {
+            background: #22d3ee !important;
+            color: #000000 !important;
+            border-color: #ffffff !important;
+            box-shadow: 0 0 20px rgba(34, 211, 238, 0.4) !important;
+            transform: translateY(-2px) !important;
+        }
+
+        /* Download buttons have a slightly different internal structure sometimes */
+        div[data-testid="stDownloadButton"] button {
+            width: 100% !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    exp_c1, exp_c2, exp_c3 = st.columns(3)
+    
+    # 1. PDF Report Generation
+    def generate_pdf_report(total_count, density_map_img, orig_img, zone_stats, roi_stats):
+        pdf = FPDF()
+        pdf.add_page()
+        
+        # Header
+        pdf.set_font("Helvetica", "B", 20)
+        pdf.set_text_color(8, 51, 68) # Dark Teal
+        pdf.cell(0, 15, "HMSTUNet Crowd Counting Report", ln=True, align="C")
+        pdf.set_font("Helvetica", "", 10)
+        pdf.set_text_color(128, 128, 128)
+        pdf.cell(0, 5, f"Generated on: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True, align="C")
+        pdf.ln(10)
+        
+        # Summary Metrics
+        pdf.set_font("Helvetica", "B", 14)
+        pdf.set_text_color(0, 0, 0)
+        pdf.cell(0, 10, "Summary Results", ln=True)
+        pdf.set_font("Helvetica", "", 12)
+        pdf.cell(0, 8, f"Total Estimated Crowd Count: {int(total_count):,}", ln=True)
+        pdf.ln(5)
+        
+        # Images
+        # Convert PIL/Numpy images to bytes for FPDF
+        def get_img_bytes(img):
+            if isinstance(img, np.ndarray):
+                img = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB) if len(img.shape)==3 else img)
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
+            return buf
+
+        orig_buf = get_img_bytes(orig_img)
+        hm_buf = get_img_bytes(density_map_img)
+        
+        pdf.image(orig_buf, x=10, w=90, title="Original Image")
+        pdf.image(hm_buf, x=110, y=pdf.get_y()-63, w=90, title="Density Heatmap")
+        pdf.ln(10)
+        
+        # Zone Stats Table
+        if zone_stats:
+            pdf.set_font("Helvetica", "B", 14)
+            pdf.cell(0, 10, "Zone Analysis (Grid)", ln=True)
+            pdf.set_font("Helvetica", "B", 10)
+            pdf.set_fill_color(34, 211, 238) # Primary Cyan
+            pdf.cell(40, 8, "Zone", 1, 0, "C", True)
+            pdf.cell(40, 8, "Count", 1, 0, "C", True)
+            pdf.cell(40, 8, "Share (%)", 1, 1, "C", True)
+            
+            pdf.set_font("Helvetica", "", 10)
+            for z in zone_stats:
+                pdf.cell(40, 7, z['zone'], 1, 0, "C")
+                pdf.cell(40, 7, str(int(round(z['count']))), 1, 0, "C")
+                pdf.cell(40, 7, f"{z['share_pct']:.2f}%", 1, 1, "C")
+            pdf.ln(10)
+            
+        # ROI Stats
+        if roi_stats:
+            pdf.set_font("Helvetica", "B", 14)
+            pdf.cell(0, 10, "Custom ROI Analysis", ln=True)
+            pdf.set_font("Helvetica", "B", 10)
+            pdf.set_fill_color(34, 211, 238)
+            pdf.cell(60, 8, "ROI Name", 1, 0, "C", True)
+            pdf.cell(40, 8, "Count", 1, 0, "C", True)
+            pdf.cell(40, 8, "Share (%)", 1, 1, "C", True)
+            
+            pdf.set_font("Helvetica", "", 10)
+            for r in roi_stats:
+                pdf.cell(60, 7, r['zone'], 1, 0, "C")
+                pdf.cell(40, 7, str(int(round(r['count']))), 1, 0, "C")
+                pdf.cell(40, 7, f"{r['share_pct']:.2f}%", 1, 1, "C")
+                
+        return bytes(pdf.output())
+
+    with exp_c1:
+        st.markdown("**PDF Full Report**")
+        if st.button("📄 Generate PDF", use_container_width=True):
+            with st.spinner("Creating PDF report..."):
+                pdf_bytes = generate_pdf_report(total_count, heatmap_rgb, orig_img, zone_stats, roi_stats)
+                st.download_button(
+                    label="⬇️ Download PDF Report",
+                    data=pdf_bytes,
+                    file_name=f"HMSTUNet_Report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+                
+    with exp_c2:
+        st.markdown("**Zone Data (CSV)**")
+        # Combine stats for export
+        export_df = pd.DataFrame(zone_stats)
+        csv = export_df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📊 Download CSV",
+            data=csv,
+            file_name=f"Zone_Stats_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+
+    with exp_c3:
+        st.markdown("**Zone Data (Excel)**")
+        # Excel requires a buffer
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            export_df.to_excel(writer, index=False, sheet_name='Zone Stats')
+            if 'roi_stats' in locals() and roi_stats:
+                pd.DataFrame(roi_stats).to_excel(writer, index=False, sheet_name='ROI Stats')
+        
+        st.download_button(
+            label="📈 Download Excel",
+            data=buffer.getvalue(),
+            file_name=f"Full_Stats_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
+    
+    st.markdown("</div>", unsafe_allow_html=True) # Close the glass container
