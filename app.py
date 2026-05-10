@@ -807,6 +807,10 @@ def run_inference(image_pil: Image.Image, model):
     with torch.no_grad():
         dm = model(img_tensor)
     density_map = dm.squeeze().cpu().numpy()
+    
+    # Align density map to original image dimensions to ensure all downstream calculations (Grid, Heatmaps) are accurate
+    density_map = align_density_map(density_map, (orig_img.size[1], orig_img.size[0]))
+    
     total_count = float(np.sum(density_map))
     return orig_img, density_map, total_count
 
@@ -870,42 +874,6 @@ def draw_zone_grid(image_pil: Image.Image, rows: int, cols: int, hotspot_zone=No
     return image
 
 
-def compute_roi_stats(density_map: np.ndarray, rois, total_count: float):
-    total = max(float(total_count), 1e-8)
-    rows = []
-    for roi in rois:
-        x0, y0, x1, y1 = roi["x0"], roi["y0"], roi["x1"], roi["y1"]
-        roi_count = float(np.sum(density_map[y0:y1, x0:x1]))
-        rows.append(
-            {
-                "zone": roi["name"],
-                "x0": x0,
-                "y0": y0,
-                "x1": x1,
-                "y1": y1,
-                "count": roi_count,
-                "share_pct": (roi_count / total) * 100,
-            }
-        )
-    return sorted(rows, key=lambda item: item["count"], reverse=True)
-
-
-def draw_roi_overlay(image_pil: Image.Image, rois):
-    image = image_pil.convert("RGB").copy()
-    draw = ImageDraw.Draw(image)
-    colors = [
-        (255, 99, 132),
-        (54, 162, 235),
-        (255, 206, 86),
-        (75, 192, 192),
-        (153, 102, 255),
-    ]
-    for i, roi in enumerate(rois):
-        color = colors[i % len(colors)]
-        x0, y0, x1, y1 = roi["x0"], roi["y0"], roi["x1"], roi["y1"]
-        draw.rectangle([x0, y0, x1, y1], outline=color, width=4)
-        draw.text((x0 + 5, max(0, y0 - 18)), roi["name"], fill=color)
-    return image
 
 
 def align_density_map(density_map: np.ndarray, target_shape):
@@ -1162,7 +1130,7 @@ with tab_single:
         st.image(orig_img, caption="Original Image", use_container_width=True)
     with col_hm:
         st.image(
-            cv2.resize(heatmap_rgb, (img_w, img_h)),
+            heatmap_rgb,
             caption="Density Heatmap",
             use_container_width=True,
         )
@@ -1244,60 +1212,6 @@ with tab_zone:
         </div>
         """, unsafe_allow_html=True)
 
-    st.markdown("##### Perspective-aware custom ROI zones")
-    st.caption("Define meaningful areas (e.g., entrance, stage-left, exits) using pixel ranges.")
-
-    roi_count = st.number_input(
-        "Number of ROI zones",
-        min_value=1,
-        max_value=5,
-        value=3,
-        step=1,
-        help="Each ROI zone is a custom rectangle over the same HMSTUNet density map.",
-    )
-
-    rois = []
-    for i in range(int(roi_count)):
-        default_name = f"Zone {i + 1}"
-        default_x0 = int(i * img_w / max(int(roi_count), 1))
-        default_x1 = int((i + 1) * img_w / max(int(roi_count), 1))
-        default_x1 = min(max(default_x1, default_x0 + 1), img_w)
-
-        with st.expander(f"ROI {i + 1}", expanded=(i == 0)):
-            zone_name = st.text_input("Zone name", value=default_name, key=f"roi_name_{i}").strip() or default_name
-            c_left, c_right = st.columns(2)
-            with c_left:
-                x0 = st.slider("x_start", min_value=0, max_value=img_w - 1, value=default_x0, key=f"roi_x0_{i}")
-                y0 = st.slider("y_start", min_value=0, max_value=img_h - 1, value=0, key=f"roi_y0_{i}")
-            with c_right:
-                x1 = st.slider("x_end", min_value=min(x0 + 1, img_w), max_value=img_w, value=default_x1, key=f"roi_x1_{i}")
-                y1 = st.slider("y_end", min_value=min(y0 + 1, img_h), max_value=img_h, value=img_h, key=f"roi_y1_{i}")
-            rois.append({"name": zone_name, "x0": x0, "y0": y0, "x1": x1, "y1": y1})
-
-    roi_stats = compute_roi_stats(density_map, rois, total_count)
-    roi_overlay = draw_roi_overlay(orig_img, rois)
-    roi_hotspot = roi_stats[0]
-
-    r1, r2 = st.columns([1.1, 1.3])
-    with r1:
-        st.image(roi_overlay, caption=f"Custom ROI overlay (hotspot: {roi_hotspot['zone']})", use_container_width=True)
-    with r2:
-        html_rows = ""
-        for z in roi_stats:
-            html_rows += f"<tr><td>{z['zone']}</td><td>{int(round(z['count']))}</td><td>{round(z['share_pct'], 2)}</td><td>({z['x0']},{z['y0']},{z['x1']},{z['y1']})</td></tr>"
-            
-        st.markdown(f"""
-        <div class="glass-table-container">
-            <table class="glass-table">
-                <thead>
-                    <tr><th>ROI Zone</th><th>Count (est.)</th><th>Share (%)</th><th>Box (x0,y0,x1,y1)</th></tr>
-                </thead>
-                <tbody>
-                    {html_rows}
-                </tbody>
-            </table>
-        </div>
-        """, unsafe_allow_html=True)
 
 with tab_compare:
     st.markdown('<div class="section-title">🔁 Before/After Comparative Analysis</div>', unsafe_allow_html=True)
@@ -1401,7 +1315,7 @@ with tab_compare:
     exp_c1, exp_c2, exp_c3 = st.columns(3)
     
     # 1. PDF Report Generation
-    def generate_pdf_report(total_count, density_map_img, orig_img, zone_stats, roi_stats):
+    def generate_pdf_report(total_count, density_map_img, orig_img, zone_stats):
         pdf = FPDF()
         pdf.add_page()
         
@@ -1477,7 +1391,7 @@ with tab_compare:
         st.markdown("**PDF Full Report**")
         if st.button("📄 Generate PDF", use_container_width=True):
             with st.spinner("Creating PDF report..."):
-                pdf_bytes = generate_pdf_report(total_count, heatmap_rgb, orig_img, zone_stats, roi_stats)
+                pdf_bytes = generate_pdf_report(total_count, heatmap_rgb, orig_img, zone_stats)
                 st.download_button(
                     label="⬇️ Download PDF Report",
                     data=pdf_bytes,
