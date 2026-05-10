@@ -44,10 +44,10 @@ Input Image  (H × W × 3)
       ▼
 ╔══════════════════════════════════════════╗
 ║    ConvNeXt-Tiny Encoder (timm)          ║
-║  f0: [H/4,  W/4,  96ch]                 ║
-║  f1: [H/8,  W/8,  192ch]                ║
-║  f2: [H/16, W/16, 384ch]                ║
-║  f3: [H/32, W/32, 768ch] ← bottleneck   ║
+║  f0: [H/4,  W/4,  96ch]                  ║
+║  f1: [H/8,  W/8,  192ch]                 ║
+║  f2: [H/16, W/16, 384ch]                 ║
+║  f3: [H/32, W/32, 768ch] ← bottleneck    ║
 ╚══════════════════════════════════════════╝
       │  f3 → bottleneck processing
       ▼
@@ -61,24 +61,24 @@ Input Image  (H × W × 3)
       ▼
 ╔══════════════════════════════════════════╗
 ║     DCAB (Dynamic Conv Attention)        ║
-║  Channel Attn: GAP→FC→Sigmoid→scale     ║
-║  Spatial Attn: avg+max→conv7×7→Sigmoid  ║
-║  DW+PW conv → BN → GELU + residual      ║
+║  Channel Attn: GAP→FC→Sigmoid→scale      ║
+║  Spatial Attn: avg+max→conv7×7→Sigmoid   ║
+║  DW+PW conv → BN → GELU + residual       ║
 ╚══════════════════════════════════════════╝
       │    (skip: f0, f1, f2 from encoder)
       ▼
 ╔══════════════════════════════════════════╗
 ║      UNet Decoder (3× DecBlocks)         ║
-║  d3: DecBlock(256+256 → 128)  2× upsamp ║
-║  d2: DecBlock(128+128 → 64)   2× upsamp ║
-║  d1: DecBlock(64+64   → 32)   2× upsamp ║
+║  d3: DecBlock(256+256 → 128)  2× upsamp  ║
+║  d2: DecBlock(128+128 → 64)   2× upsamp  ║
+║  d1: DecBlock(64+64   → 32)   2× upsamp  ║
 ╚══════════════════════════════════════════╝
       │
       ▼
 ╔══════════════════╗
-║  Prediction Head  ║
-║  Conv(32→16) GELU ║
-║  Conv(16→1)  ReLU ║
+║  Prediction Head ║
+║  Conv(32→16) GELU║
+║  Conv(16→1)  ReLU║
 ╚══════════════════╝
       │
       ▼
