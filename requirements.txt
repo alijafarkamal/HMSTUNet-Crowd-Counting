@@ -7,3 +7,6 @@ scipy
 opencv-python-headless
 pillow
 streamlit-drawable-canvas
+fpdf2
+pandas
+openpyxl
