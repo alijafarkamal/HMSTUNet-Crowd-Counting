@@ -1312,7 +1312,7 @@ with tab_compare:
         </style>
     """, unsafe_allow_html=True)
     
-    exp_c1, exp_c2, exp_c3 = st.columns(3)
+    exp_c1, exp_c2 = st.columns(2)
     
     # 1. PDF Report Generation
     def generate_pdf_report(total_count, density_map_img, orig_img, zone_stats):
@@ -1368,22 +1368,6 @@ with tab_compare:
                 pdf.cell(40, 7, str(int(round(z['count']))), 1, 0, "C")
                 pdf.cell(40, 7, f"{z['share_pct']:.2f}%", 1, 1, "C")
             pdf.ln(10)
-            
-        # ROI Stats
-        if roi_stats:
-            pdf.set_font("Helvetica", "B", 14)
-            pdf.cell(0, 10, "Custom ROI Analysis", ln=True)
-            pdf.set_font("Helvetica", "B", 10)
-            pdf.set_fill_color(34, 211, 238)
-            pdf.cell(60, 8, "ROI Name", 1, 0, "C", True)
-            pdf.cell(40, 8, "Count", 1, 0, "C", True)
-            pdf.cell(40, 8, "Share (%)", 1, 1, "C", True)
-            
-            pdf.set_font("Helvetica", "", 10)
-            for r in roi_stats:
-                pdf.cell(60, 7, r['zone'], 1, 0, "C")
-                pdf.cell(40, 7, str(int(round(r['count']))), 1, 0, "C")
-                pdf.cell(40, 7, f"{r['share_pct']:.2f}%", 1, 1, "C")
                 
         return bytes(pdf.output())
 
@@ -1410,23 +1394,6 @@ with tab_compare:
             data=csv,
             file_name=f"Zone_Stats_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
             mime="text/csv",
-            use_container_width=True
-        )
-
-    with exp_c3:
-        st.markdown("**Zone Data (Excel)**")
-        # Excel requires a buffer
-        buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-            export_df.to_excel(writer, index=False, sheet_name='Zone Stats')
-            if 'roi_stats' in locals() and roi_stats:
-                pd.DataFrame(roi_stats).to_excel(writer, index=False, sheet_name='ROI Stats')
-        
-        st.download_button(
-            label="📈 Download Excel",
-            data=buffer.getvalue(),
-            file_name=f"Full_Stats_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True
         )
     
